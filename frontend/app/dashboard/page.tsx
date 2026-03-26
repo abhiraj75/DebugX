@@ -1,102 +1,209 @@
 "use client";
 
+import { useEffect, useState, useMemo } from "react";
 import ProtectedRoute from "@/components/layout/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 export default function DashboardPage() {
     const { user, dbUser, signOut } = useAuth();
     const router = useRouter();
+    const [activity, setActivity] = useState<Record<string, number>>({});
+
+    const displayName = dbUser?.display_name || user?.displayName || "User";
+    const email = dbUser?.email || user?.email || "";
+
+    // Fetch activity data
+    useEffect(() => {
+        if (user?.uid) {
+            fetch(`${API_URL}/api/users/activity/${user.uid}`)
+                .then((r) => r.json())
+                .then((d) => setActivity(d.activity || {}))
+                .catch(() => {});
+        }
+    }, [user?.uid]);
 
     const handleSignOut = async () => {
         await signOut();
         router.replace("/login");
     };
 
-    // Get initials for avatar fallback
-    const displayName = dbUser?.display_name || user?.displayName || "User";
-    const email = dbUser?.email || user?.email || "";
-    const avatarUrl = dbUser?.avatar_url || user?.photoURL || "";
-    const initial = displayName.charAt(0).toUpperCase();
-
     return (
         <ProtectedRoute>
-            <div className="min-h-screen bg-[#0f1117] text-white">
-                {/* Top nav */}
-                <nav className="border-b border-white/10 bg-[#1a1d2e]/80 backdrop-blur-sm sticky top-0 z-10">
-                    <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-                        <span className="text-xl font-bold bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
-                            Codexa
-                        </span>
-                        <button
-                            onClick={handleSignOut}
-                            className="text-slate-400 hover:text-white text-sm px-4 py-2 rounded-lg hover:bg-white/5 transition"
-                        >
-                            Sign Out
-                        </button>
-                    </div>
+            <div className="min-h-screen bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100">
+                {/* Nav */}
+                <nav className="border-b border-neutral-200 dark:border-neutral-800 h-12 flex items-center justify-between px-6 sticky top-0 bg-white dark:bg-neutral-950 z-10">
+                    <span className="text-sm font-semibold tracking-wide">CODEXA</span>
+                    <button
+                        onClick={handleSignOut}
+                        className="text-neutral-500 hover:text-white text-xs transition"
+                    >
+                        Sign Out
+                    </button>
                 </nav>
 
-                {/* Main content */}
-                <main className="max-w-6xl mx-auto px-6 py-12">
-                    {/* Welcome card */}
-                    <div className="bg-gradient-to-br from-indigo-600/20 to-violet-600/10 border border-indigo-500/30 rounded-2xl p-8 mb-8 flex items-center gap-6">
-                        {/* Avatar */}
-                        <div className="shrink-0">
-                            {avatarUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                    src={avatarUrl}
-                                    alt={displayName}
-                                    className="w-20 h-20 rounded-full border-2 border-indigo-500/50 object-cover"
-                                />
-                            ) : (
-                                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-3xl font-bold">
-                                    {initial}
-                                </div>
-                            )}
-                        </div>
+                <main className="max-w-3xl mx-auto px-6 py-10">
+                    {/* User info */}
+                    <div className="mb-8">
+                        <h1 className="text-xl font-semibold">{displayName}</h1>
+                        <p className="text-neutral-500 text-sm">{email}</p>
+                        {dbUser?.username && (
+                            <p className="text-neutral-600 text-xs mt-1">@{dbUser.username}</p>
+                        )}
+                    </div>
 
-                        {/* Name & email */}
-                        <div>
-                            <p className="text-slate-400 text-sm mb-1">Welcome back 👋</p>
-                            <h1 className="text-2xl font-bold text-white">{displayName}</h1>
-                            <p className="text-slate-400 text-sm mt-1">{email}</p>
-                            {dbUser?.username && (
-                                <span className="inline-block mt-2 text-xs bg-indigo-500/20 text-indigo-300 px-3 py-1 rounded-full">
-                                    @{dbUser.username}
-                                </span>
-                            )}
+                    {/* Stats */}
+                    <div className="grid grid-cols-3 gap-3 mb-8">
+                        <div className="border border-neutral-800 rounded p-4">
+                            <p className="text-2xl font-semibold">{dbUser?.problems_solved ?? 0}</p>
+                            <p className="text-neutral-500 text-xs mt-1">Solved</p>
+                        </div>
+                        <div className="border border-neutral-800 rounded p-4">
+                            <p className="text-2xl font-semibold">{dbUser?.total_score ?? 0}</p>
+                            <p className="text-neutral-500 text-xs mt-1">Score</p>
+                        </div>
+                        <div className="border border-neutral-800 rounded p-4">
+                            <p className="text-2xl font-semibold">{dbUser?.current_streak ?? 0}</p>
+                            <p className="text-neutral-500 text-xs mt-1">Streak</p>
                         </div>
                     </div>
 
-                    {/* Quick Stats — placeholder */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-                        {[
-                            { label: "Problems Solved", value: dbUser?.problems_solved ?? 0, color: "from-green-500/20 to-emerald-500/10 border-green-500/20" },
-                            { label: "Total Score", value: dbUser?.total_score ?? 0, color: "from-indigo-500/20 to-blue-500/10 border-indigo-500/20" },
-                            { label: "Current Streak", value: `${dbUser?.current_streak ?? 0} 🔥`, color: "from-orange-500/20 to-amber-500/10 border-orange-500/20" },
-                        ].map((stat) => (
-                            <div
-                                key={stat.label}
-                                className={`bg-gradient-to-br ${stat.color} border rounded-xl p-5`}
-                            >
-                                <p className="text-slate-400 text-xs mb-2">{stat.label}</p>
-                                <p className="text-2xl font-bold text-white">{stat.value}</p>
-                            </div>
-                        ))}
+                    {/* Contribution graph */}
+                    <div className="border border-neutral-800 rounded p-4 mb-8">
+                        <div className="flex items-center justify-between mb-3">
+                            <p className="text-sm text-neutral-400">Activity</p>
+                            <p className="text-xs text-neutral-600">
+                                {Object.values(activity).reduce((a, b) => a + b, 0)} submissions this year
+                            </p>
+                        </div>
+                        <ContributionGraph activity={activity} />
                     </div>
 
-                    {/* Coming Soon */}
-                    <div className="bg-[#1a1d2e] border border-white/10 rounded-2xl p-8 text-center">
-                        <div className="text-4xl mb-3">🚧</div>
-                        <h2 className="text-lg font-semibold text-white mb-2">More coming soon</h2>
-                        <p className="text-slate-400 text-sm">
-                            Problems, heatmap, learning tracks — all being built. Stay tuned!
-                        </p>
-                    </div>
+                    {/* Quick link */}
+                    <button
+                        onClick={() => router.push("/problems")}
+                        className="w-full border border-neutral-200 dark:border-neutral-800 rounded p-4 text-left hover:bg-neutral-50 dark:hover:bg-neutral-900 transition"
+                    >
+                        <p className="text-sm font-medium text-neutral-900 dark:text-white">Practice Problems</p>
+                        <p className="text-xs text-neutral-500 mt-0.5">Solve problems and get AI hints</p>
+                    </button>
                 </main>
             </div>
         </ProtectedRoute>
     );
+}
+
+
+// ─── GitHub-style Contribution Graph ─────────────────────────────────────────
+
+function ContributionGraph({ activity }: { activity: Record<string, number> }) {
+    const { weeks, months } = useMemo(() => buildGraph(activity), [activity]);
+
+    return (
+        <div className="overflow-x-auto">
+            {/* Month labels */}
+            <div className="flex mb-1 ml-0">
+                {months.map((m, i) => (
+                    <span
+                        key={i}
+                        className="text-[10px] text-neutral-600"
+                        style={{ width: `${m.span * 13}px` }}
+                    >
+                        {m.label}
+                    </span>
+                ))}
+            </div>
+
+            {/* Grid */}
+            <div className="flex gap-[3px]">
+                {weeks.map((week, wi) => (
+                    <div key={wi} className="flex flex-col gap-[3px]">
+                        {week.map((day, di) => (
+                            <div
+                                key={di}
+                                className={`w-[10px] h-[10px] rounded-sm ${
+                                    day === null
+                                        ? "bg-transparent"
+                                        : day === 0
+                                        ? "bg-neutral-900"
+                                        : day <= 2
+                                        ? "bg-green-900"
+                                        : day <= 5
+                                        ? "bg-green-700"
+                                        : "bg-green-500"
+                                }`}
+                                title={day !== null ? `${day} submissions` : ""}
+                            />
+                        ))}
+                    </div>
+                ))}
+            </div>
+
+            {/* Legend */}
+            <div className="flex items-center gap-1 mt-2 justify-end">
+                <span className="text-[10px] text-neutral-600 mr-1">Less</span>
+                <div className="w-[10px] h-[10px] rounded-sm bg-neutral-900" />
+                <div className="w-[10px] h-[10px] rounded-sm bg-green-900" />
+                <div className="w-[10px] h-[10px] rounded-sm bg-green-700" />
+                <div className="w-[10px] h-[10px] rounded-sm bg-green-500" />
+                <span className="text-[10px] text-neutral-600 ml-1">More</span>
+            </div>
+        </div>
+    );
+}
+
+
+function buildGraph(activity: Record<string, number>) {
+    const today = new Date();
+    const weeks: (number | null)[][] = [];
+    const months: { label: string; span: number }[] = [];
+
+    // Go back ~52 weeks from today
+    const start = new Date(today);
+    start.setDate(start.getDate() - 364);
+    // Align to Sunday
+    start.setDate(start.getDate() - start.getDay());
+
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    let lastMonth = -1;
+    let currentMonthSpan = 0;
+
+    const cursor = new Date(start);
+    while (cursor <= today) {
+        const week: (number | null)[] = [];
+        for (let d = 0; d < 7; d++) {
+            if (cursor > today) {
+                week.push(null);
+            } else if (cursor < new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000)) {
+                week.push(null);
+            } else {
+                const key = cursor.toISOString().split("T")[0];
+                week.push(activity[key] || 0);
+            }
+
+            // Track months
+            const m = cursor.getMonth();
+            if (m !== lastMonth) {
+                if (currentMonthSpan > 0) {
+                    months[months.length - 1].span = currentMonthSpan;
+                }
+                months.push({ label: monthNames[m], span: 0 });
+                lastMonth = m;
+                currentMonthSpan = 0;
+            }
+
+            cursor.setDate(cursor.getDate() + 1);
+        }
+        weeks.push(week);
+        currentMonthSpan++;
+    }
+
+    // Set last month span
+    if (months.length > 0) {
+        months[months.length - 1].span = currentMonthSpan;
+    }
+
+    return { weeks, months };
 }

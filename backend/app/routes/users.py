@@ -109,6 +109,40 @@ def get_user_by_id(
     return _user_response(user)
 
 
+@router.get("/activity/{firebase_uid}", summary="Get User Activity")
+def get_user_activity(
+    firebase_uid: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Get submission activity for the past year, grouped by date.
+    Returns dict of {date_string: count} for the contribution graph.
+    """
+    from app.models.models import Submission
+    from sqlalchemy import func
+    from datetime import timedelta
+
+    user = db.query(User).filter(User.firebase_uid == firebase_uid).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    one_year_ago = datetime.utcnow() - timedelta(days=365)
+
+    results = (
+        db.query(
+            func.date(Submission.created_at).label("date"),
+            func.count(Submission.id).label("count"),
+        )
+        .filter(Submission.user_id == user.id)
+        .filter(Submission.created_at >= one_year_ago)
+        .group_by(func.date(Submission.created_at))
+        .all()
+    )
+
+    activity = {str(row.date): row.count for row in results}
+    return {"activity": activity}
+
+
 # ─── Helper ───────────────────────────────────────────────────────────────────
 
 def _user_response(user: User) -> dict:

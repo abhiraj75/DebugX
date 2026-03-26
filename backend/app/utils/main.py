@@ -7,7 +7,7 @@ from app.utils.database import engine, Base
 import app.models.models  # noqa: F401
 
 # Import routers
-from app.routes import users
+from app.routes import users, problems, submissions
 
 # Create all DB tables
 Base.metadata.create_all(bind=engine)
@@ -29,6 +29,9 @@ app.add_middleware(
 
 # Routers
 app.include_router(users.router, prefix="/api/users", tags=["users"])
+app.include_router(problems.router, prefix="/api/problems", tags=["problems"])
+app.include_router(submissions.router, prefix="/api/submissions", tags=["submissions"])
+
 
 
 @app.get("/")

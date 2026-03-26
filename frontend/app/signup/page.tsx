@@ -6,11 +6,13 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 
-export default function LoginPage() {
+export default function SignupPage() {
     const router = useRouter();
-    const { user, loading: authLoading, signInWithEmail, signInWithGoogle } = useAuth();
+    const { user, loading: authLoading, signUpWithEmail, signInWithGoogle } = useAuth();
     
-    const [formData, setFormData] = useState({ email: "", password: "" });
+    const [formData, setFormData] = useState({
+        username: "", email: "", password: "", confirmPassword: "", agreeToTerms: false
+    });
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
@@ -24,11 +26,18 @@ export default function LoginPage() {
         e.preventDefault();
         setError(null);
         setLoading(true);
+        
+        if (!formData.username.trim()) { setError("Name is required"); setLoading(false); return; }
+        if (!formData.email.trim()) { setError("Email is required"); setLoading(false); return; }
+        if (!formData.password) { setError("Password is required"); setLoading(false); return; }
+        if (formData.password !== formData.confirmPassword) { setError("Passwords do not match"); setLoading(false); return; }
+        if (formData.password.length < 6) { setError("Password must be at least 6 characters"); setLoading(false); return; }
+        
         try {
-            await signInWithEmail(formData.email, formData.password);
+            await signUpWithEmail(formData.email, formData.password, formData.username);
             router.push('/dashboard');
         } catch (err: any) {
-            setError(friendlyError(err.message || 'Login failed. Please check your credentials.'));
+            setError(friendlyError(err.message || 'Failed to create account. Please try again.'));
         } finally {
             setLoading(false);
         }
@@ -41,7 +50,7 @@ export default function LoginPage() {
             await signInWithGoogle();
             router.push('/dashboard');
         } catch (err: any) {
-            setError(friendlyError(err.message || 'Failed to login with Google.'));
+            setError(friendlyError(err.message || 'Failed to sign up with Google.'));
         } finally {
             setLoading(false);
         }
@@ -50,14 +59,14 @@ export default function LoginPage() {
     if (authLoading) return null;
 
     return (
-        <div className="min-h-screen bg-white dark:bg-neutral-950 flex items-center justify-center px-6">
+        <div className="min-h-screen bg-white dark:bg-neutral-950 flex items-center justify-center px-6 py-12">
             <div className="max-w-sm w-full">
                 <div className="text-center mb-8">
                     <Link href="/" className="inline-flex items-center gap-2 mb-5">
                         <span className="text-2xl font-bold text-neutral-900 dark:text-white tracking-wide">CODEXA</span>
                     </Link>
-                    <h1 className="text-xl font-bold text-neutral-900 dark:text-white mb-1">Welcome back</h1>
-                    <p className="text-sm text-neutral-500 dark:text-neutral-400">Log in to your account to continue</p>
+                    <h1 className="text-xl font-bold text-neutral-900 dark:text-white mb-1">Create an account</h1>
+                    <p className="text-sm text-neutral-500 dark:text-neutral-400">Start coding for free.</p>
                 </div>
 
                 <div className="border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 bg-white dark:bg-neutral-900 shadow-sm">
@@ -68,30 +77,40 @@ export default function LoginPage() {
                     )}
 
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <div>
-                            <label className="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1.5">Email</label>
-                            <input
-                                type="email"
-                                placeholder="you@example.com"
-                                className="w-full border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-white bg-white dark:bg-neutral-800 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-neutral-400 dark:focus:ring-neutral-500 placeholder-neutral-300 dark:placeholder-neutral-600 transition-colors"
-                                value={formData.email}
-                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                required
-                            />
-                        </div>
-
-                        <div>
-                            <div className="flex items-center justify-between mb-1.5">
-                                <label className="block text-xs font-medium text-neutral-700 dark:text-neutral-300">Password</label>
+                        {[
+                            { label: "Full Name", type: "text", key: "username", placeholder: "Your name" },
+                            { label: "Email", type: "email", key: "email", placeholder: "you@example.com" },
+                            { label: "Password", type: "password", key: "password", placeholder: "At least 6 characters" },
+                            { label: "Confirm Password", type: "password", key: "confirmPassword", placeholder: "••••••••" },
+                        ].map(field => (
+                            <div key={field.key}>
+                                <label className="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1.5">{field.label}</label>
+                                <input
+                                    type={field.type}
+                                    placeholder={field.placeholder}
+                                    className="w-full border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-white bg-white dark:bg-neutral-800 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-neutral-400 dark:focus:ring-neutral-500 placeholder-neutral-300 dark:placeholder-neutral-600 transition-colors"
+                                    value={(formData as any)[field.key]}
+                                    onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })}
+                                    required
+                                />
                             </div>
+                        ))}
+
+                        <div className="flex items-start gap-2 pt-1">
                             <input
-                                type="password"
-                                placeholder="••••••••"
-                                className="w-full border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-white bg-white dark:bg-neutral-800 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-neutral-400 dark:focus:ring-neutral-500 placeholder-neutral-300 dark:placeholder-neutral-600 transition-colors"
-                                value={formData.password}
-                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                type="checkbox"
+                                id="terms"
+                                className="mt-0.5 rounded border-neutral-300 dark:border-neutral-600 focus:ring-1 focus:ring-neutral-400 dark:focus:ring-neutral-500"
+                                checked={formData.agreeToTerms}
+                                onChange={(e) => setFormData({ ...formData, agreeToTerms: e.target.checked })}
                                 required
                             />
+                            <label htmlFor="terms" className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed cursor-pointer">
+                                I agree to the{" "}
+                                <Link href="#" className="text-neutral-900 dark:text-white underline hover:no-underline">Terms of Service</Link>
+                                {" "}and{" "}
+                                <Link href="#" className="text-neutral-900 dark:text-white underline hover:no-underline">Privacy Policy</Link>
+                            </label>
                         </div>
 
                         <button
@@ -99,7 +118,7 @@ export default function LoginPage() {
                             disabled={loading}
                             className="w-full bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-sm font-medium py-2.5 px-4 rounded-md hover:bg-neutral-700 dark:hover:bg-neutral-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2"
                         >
-                            {loading ? "Logging in..." : "Log in"}
+                            {loading ? "Creating account..." : "Create account"}
                         </button>
                     </form>
 
@@ -127,9 +146,9 @@ export default function LoginPage() {
                 </div>
 
                 <p className="text-center mt-5 text-sm text-neutral-500 dark:text-neutral-400">
-                    Don&apos;t have an account?{" "}
-                    <Link href="/signup" className="text-neutral-900 dark:text-white font-medium hover:underline">
-                        Sign up
+                    Already have an account?{" "}
+                    <Link href="/login" className="text-neutral-900 dark:text-white font-medium hover:underline">
+                        Log in
                     </Link>
                 </p>
             </div>

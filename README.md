@@ -533,6 +533,7 @@ Frontend will be live at: **http://localhost:3000**
 
 ## 👨‍💻 Developer
 
-**Name:** Tuhin Mondal & Abhiraj Singh
+**Name:** nextgendev2029
+**Email:** tuhinrock121@gmail.com
 **Project:** OJT 2026 — Codexa
 **Firebase Project:** `codexa-51a75`
