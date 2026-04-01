@@ -5,6 +5,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { getLogger } from "@/lib/logger";
+
+const logger = getLogger("Signup");
 
 export default function SignupPage() {
     const router = useRouter();
@@ -34,9 +37,12 @@ export default function SignupPage() {
         if (formData.password.length < 6) { setError("Password must be at least 6 characters"); setLoading(false); return; }
         
         try {
+            logger.info("Email signup attempt", { email: formData.email, displayName: formData.username });
             await signUpWithEmail(formData.email, formData.password, formData.username);
+            logger.info("Email signup successful");
             router.push('/dashboard');
         } catch (err: any) {
+            logger.warn("Email signup failed", { error: err.message });
             setError(friendlyError(err.message || 'Failed to create account. Please try again.'));
         } finally {
             setLoading(false);
@@ -47,9 +53,12 @@ export default function SignupPage() {
         setError(null);
         setLoading(true);
         try {
+            logger.info("Google signup attempt");
             await signInWithGoogle();
+            logger.info("Google signup successful");
             router.push('/dashboard');
         } catch (err: any) {
+            logger.warn("Google signup failed", { error: err.message });
             setError(friendlyError(err.message || 'Failed to sign up with Google.'));
         } finally {
             setLoading(false);

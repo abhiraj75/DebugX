@@ -4,6 +4,9 @@ import ProtectedRoute from "@/components/layout/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
 import { Loader2, User, Settings, ShieldAlert, LogOut } from "lucide-react";
+import { getLogger } from "@/lib/logger";
+
+const logger = getLogger("Profile");
 
 type Tab = "personal" | "account" | "danger";
 
@@ -36,6 +39,7 @@ export default function ProfilePage() {
         setMessage(null);
 
         try {
+            logger.info("Saving profile", { display_name: formData.display_name, username: formData.username });
             const idToken = await user?.getIdToken();
             const response = await fetch("http://localhost:8000/api/users/update", {
                 method: "PATCH",
@@ -52,10 +56,12 @@ export default function ProfilePage() {
             }
 
             await syncUserWithBackend();
+            logger.info("Profile updated successfully");
             setMessage({ text: "Profile updated successfully!", type: "success" });
             setIsEditing(false);
             setTimeout(() => setMessage(null), 3000);
         } catch (err: any) {
+            logger.error("Profile update failed", { error: err.message });
             setMessage({ text: err.message, type: "error" });
         } finally {
             setIsLoading(false);

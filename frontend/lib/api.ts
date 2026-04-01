@@ -1,5 +1,7 @@
 import { auth } from "@/lib/firebase";
+import { getLogger } from "@/lib/logger";
 
+const logger = getLogger("API");
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 /**
@@ -24,6 +26,9 @@ async function apiFetch(path: string, options: RequestInit = {}) {
         headers["Authorization"] = `Bearer ${token}`;
     }
 
+    const method = options.method || "GET";
+    logger.debug(`${method} ${path}`);
+
     const res = await fetch(`${API_URL}${path}`, {
         ...options,
         headers,
@@ -31,9 +36,11 @@ async function apiFetch(path: string, options: RequestInit = {}) {
 
     if (!res.ok) {
         const error = await res.json().catch(() => ({ detail: "Request failed" }));
+        logger.error(`${method} ${path} failed`, { status: res.status, detail: error.detail });
         throw new Error(error.detail || `API error ${res.status}`);
     }
 
+    logger.debug(`${method} ${path} — ${res.status} OK`);
     return res.json();
 }
 

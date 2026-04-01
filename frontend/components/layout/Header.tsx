@@ -6,6 +6,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
 import ThemeToggle from "@/components/ui/ThemeToggle";
+import { getLogger } from "@/lib/logger";
+
+const logger = getLogger("Header");
 
 export default function Header() {
     const pathname = usePathname();
@@ -36,10 +39,11 @@ export default function Header() {
 
     const handleLogout = async () => {
         try {
+            logger.info("User initiated logout");
             await signOut();
             router.push("/");
         } catch (error) {
-            console.error("Logout failed:", error);
+            logger.error("Logout failed", error);
         }
     };
 

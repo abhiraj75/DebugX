@@ -12,6 +12,9 @@ import {
     updateProfile,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { getLogger } from "@/lib/logger";
+
+const logger = getLogger("Auth");
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -53,14 +56,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Sync Firebase user to backend and get DB profile
     const syncWithBackend = async (firebaseUser: User): Promise<DBUser | null> => {
         try {
+            logger.info("Syncing user with backend", { uid: firebaseUser.uid });
             const token = await firebaseUser.getIdToken();
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/sync`, {
                 method: "POST",
                 headers: { Authorization: `Bearer ${token}` },
             });
-            if (!res.ok) return null;
-            return await res.json();
-        } catch {
+            if (!res.ok) {
+                logger.error("Backend sync failed", { status: res.status });
+                return null;
+            }
+            const profile = await res.json();
+            logger.info("Backend sync successful", { username: profile.username });
+            return profile;
+        } catch (err) {
+            logger.error("Backend sync error", err);
             return null;
         }
     };
@@ -77,9 +87,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             setUser(firebaseUser);
             if (firebaseUser) {
+                logger.info("Auth state changed: user signed in", { uid: firebaseUser.uid, email: firebaseUser.email });
                 const profile = await syncWithBackend(firebaseUser);
                 setDbUser(profile);
             } else {
+                logger.info("Auth state changed: user signed out");
                 setDbUser(null);
             }
             setLoading(false);
@@ -90,24 +102,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // ─── Auth Actions ──────────────────────────────────────────────────────────
 
     const signInWithEmail = async (email: string, password: string) => {
+        logger.info("Signing in with email", { email });
         await signInWithEmailAndPassword(auth, email, password);
+        logger.info("Email sign-in successful");
     };
 
     const signUpWithEmail = async (email: string, password: string, displayName: string) => {
+        logger.info("Signing up with email", { email, displayName });
         const credential = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(credential.user, { displayName });
         // Force re-sync after profile update
         await credential.user.reload();
+        logger.info("Email sign-up successful", { uid: credential.user.uid });
     };
 
     const signInWithGoogle = async () => {
+        logger.info("Signing in with Google");
         const provider = new GoogleAuthProvider();
         await signInWithPopup(auth, provider);
+        logger.info("Google sign-in successful");
     };
 
     const signOut = async () => {
+        logger.info("Signing out");
         await firebaseSignOut(auth);
         setDbUser(null);
+        logger.info("Sign-out complete");
     };
 
     return (

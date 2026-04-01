@@ -5,6 +5,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { getLogger } from "@/lib/logger";
+
+const logger = getLogger("Login");
 
 export default function LoginPage() {
     const router = useRouter();
@@ -25,9 +28,12 @@ export default function LoginPage() {
         setError(null);
         setLoading(true);
         try {
+            logger.info("Email login attempt", { email: formData.email });
             await signInWithEmail(formData.email, formData.password);
+            logger.info("Email login successful");
             router.push('/dashboard');
         } catch (err: any) {
+            logger.warn("Email login failed", { error: err.message });
             setError(friendlyError(err.message || 'Login failed. Please check your credentials.'));
         } finally {
             setLoading(false);
@@ -38,9 +44,12 @@ export default function LoginPage() {
         setError(null);
         setLoading(true);
         try {
+            logger.info("Google login attempt");
             await signInWithGoogle();
+            logger.info("Google login successful");
             router.push('/dashboard');
         } catch (err: any) {
+            logger.warn("Google login failed", { error: err.message });
             setError(friendlyError(err.message || 'Failed to login with Google.'));
         } finally {
             setLoading(false);

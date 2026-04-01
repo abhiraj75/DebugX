@@ -6,6 +6,9 @@ import ProtectedRoute from "@/components/layout/ProtectedRoute";
 import CodeEditor from "@/components/editor/CodeEditor";
 import { fetchProblem, submitCode, ProblemDetail, SubmissionResult } from "@/lib/api";
 import { Group, Panel, Separator } from "react-resizable-panels";
+import { getLogger } from "@/lib/logger";
+
+const logger = getLogger("ProblemSolve");
 
 const DIFF_COLORS: Record<string, string> = {
     easy: "text-green-500",
@@ -31,12 +34,15 @@ export default function ProblemSolvePage() {
     useEffect(() => {
         const load = async () => {
             try {
+                logger.info("Loading problem", { slug });
                 const data = await fetchProblem(slug);
                 setProblem(data);
+                logger.info("Problem loaded", { title: data.title, difficulty: data.difficulty });
                 if (data.starter_code?.python) {
                     setCode(data.starter_code.python);
                 }
             } catch (err: any) {
+                logger.error("Failed to load problem", { slug, error: err.message });
                 setError(err.message || "Failed to load problem");
             } finally {
                 setLoading(false);
@@ -50,10 +56,13 @@ export default function ProblemSolvePage() {
         setSubmitting(true);
         setError(null);
         try {
+            logger.info("Submitting code", { problemId: problem.id, language });
             const res = await submitCode(problem.id, code, language);
+            logger.info("Submission result", { status: res.status, passed: res.passed_tests, total: res.total_tests });
             setResult(res);
             setActiveTab("tests");
         } catch (err: any) {
+            logger.error("Submission failed", { error: err.message });
             setError(err.message || "Submission failed");
             setActiveTab("console");
         } finally {

@@ -5,6 +5,9 @@ import ProtectedRoute from "@/components/layout/ProtectedRoute";
 import Link from "next/link";
 import { fetchProblems, fetchUserSubmissions, ProblemListItem, SubmissionResult } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { getLogger } from "@/lib/logger";
+
+const logger = getLogger("Problems");
 
 const topics = ["All", "Arrays", "Strings", "Linked Lists", "Trees", "Stack", "Dynamic Programming", "Math", "Loops", "Conditionals"];
 const difficulties = ["All", "Easy", "Medium", "Hard"];
@@ -27,6 +30,7 @@ export default function ProblemsPage() {
         const loadData = async () => {
             try {
                 setLoading(true);
+                logger.info("Fetching problems list");
                 const probsData = await fetchProblems();
                 
                 let subsData: SubmissionResult[] = [];
@@ -44,8 +48,9 @@ export default function ProblemsPage() {
                     return { ...p, userSolved, userAttempts, userSuccessRate };
                 });
                 setProblems(enrichedProblems);
+                logger.info("Problems loaded", { total: probsData.length, solved: enrichedProblems.filter(p => p.userSolved).length });
             } catch (err) {
-                console.error("Failed to fetch problems:", err);
+                logger.error("Failed to fetch problems", err);
             } finally {
                 setLoading(false);
             }

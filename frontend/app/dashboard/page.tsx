@@ -6,6 +6,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { fetchUserHeatmap, fetchUserStats, fetchUserSubmissions, fetchProblems, HeatmapData, SubmissionResult } from "@/lib/api";
+import { getLogger } from "@/lib/logger";
+
+const logger = getLogger("Dashboard");
 
 // ── Live Clock Component ──────────────────────────────────────────────────────
 
@@ -260,6 +263,7 @@ export default function DashboardPage() {
 
         const fetchData = async () => {
             try {
+                logger.info("Fetching dashboard data", { user: dbUser?.username });
                 const [subsData, probsData, heatmapData, statsData] = await Promise.all([
                     fetchUserSubmissions(),
                     fetchProblems(),
@@ -270,8 +274,9 @@ export default function DashboardPage() {
                 setTotalProblemsCount(probsData.length);
                 setHeatmap(heatmapData);
                 setStats(statsData);
+                logger.info("Dashboard data loaded", { submissions: subsData.length, problems: probsData.length });
             } catch (error) {
-                console.error("Dashboard fetch failed:", error);
+                logger.error("Dashboard fetch failed", error);
             } finally {
                 setLoadingData(false);
             }
