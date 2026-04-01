@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 
 from app.utils.database import get_db
+from app.utils.logger import get_logger
 from app.routes.users import verify_firebase_token
 from app.models.models import Problem, Submission, SubmissionStatus, AIFeedback, UserProgress
 from app.schemas.schemas import SubmissionCreate, SubmissionOut, AIFeedbackOut, TestCaseResult
@@ -10,6 +11,7 @@ from app.utils.code_runner import run_code_against_tests
 from app.utils.gemini import get_hint
 
 router = APIRouter()
+logger = get_logger(__name__)
 
 
 # ─── POST /api/submissions ───────────────────────────────────────────────────
@@ -29,12 +31,19 @@ def submit_code(
     uid = decoded_token.get("uid") or decoded_token.get("user_id")
     user = db.query(User).filter(User.firebase_uid == uid).first()
     if not user:
+        logger.warning("Submission attempted by unknown user (uid=%s)", uid)
         raise HTTPException(status_code=404, detail="User not found. Please sync your account first.")
 
     # 2. Get the problem
     problem = db.query(Problem).filter(Problem.id == body.problem_id).first()
     if not problem:
+        logger.warning("Submission for non-existent problem (problem_id=%d, uid=%s)", body.problem_id, uid)
         raise HTTPException(status_code=404, detail="Problem not found")
+
+    logger.info(
+        "Code submission received (user=%s, problem_id=%d, problem='%s', language=%s)",
+        user.username, problem.id, problem.title, body.language,
+    )
 
     # 3. Create submission record (PENDING)
     submission = Submission(
@@ -47,10 +56,12 @@ def submit_code(
     db.add(submission)
     db.commit()
     db.refresh(submission)
+    logger.debug("Submission record created (submission_id=%d)", submission.id)
 
     # 4. Run code against test cases
     test_cases = problem.test_cases or []
     if not test_cases:
+        logger.error("Problem %d has no test cases configured", problem.id)
         raise HTTPException(status_code=400, detail="This problem has no test cases configured")
 
     run_result = run_code_against_tests(
@@ -78,6 +89,12 @@ def submit_code(
     db.commit()
     db.refresh(submission)
 
+    logger.info(
+        "Submission evaluated (submission_id=%d, status=%s, passed=%d/%d, score=%d, time=%dms)",
+        submission.id, submission.status.value, submission.passed_tests,
+        submission.total_tests, submission.score, submission.execution_time or 0,
+    )
+
     # 6. Update user progress
     progress = db.query(UserProgress).filter(
         UserProgress.user_id == user.id,
@@ -103,6 +120,7 @@ def submit_code(
         # Update user stats
         user.problems_solved = (user.problems_solved or 0) + 1
         user.total_score = (user.total_score or 0) + 10  # 10 points per problem
+        logger.info("Problem solved! (user=%s, problem='%s', total_solved=%d)", user.username, problem.title, user.problems_solved)
 
     # Update problem stats
     problem.total_attempts = (problem.total_attempts or 0) + 1
@@ -116,6 +134,7 @@ def submit_code(
     # 7. Generate AI feedback if not fully accepted
     feedback_data = None
     if submission.status != SubmissionStatus.ACCEPTED:
+        logger.info("Generating AI feedback for submission %d", submission.id)
         # Send full failed test details to Gemini (input + expected + actual)
         # so it can compare outputs and find the exact bug
         failed_test_details = [
@@ -145,6 +164,7 @@ def submit_code(
         db.add(ai_feedback)
         db.commit()
         db.refresh(ai_feedback)
+        logger.info("AI feedback saved (submission_id=%d)", submission.id)
 
         feedback_data = AIFeedbackOut(
             feedback_text=ai_feedback.feedback_text,
@@ -196,7 +216,10 @@ def get_user_heatmap(
     uid = decoded_token.get("uid") or decoded_token.get("user_id")
     user = db.query(User).filter(User.firebase_uid == uid).first()
     if not user:
+        logger.warning("Heatmap requested for unknown user (uid=%s)", uid)
         raise HTTPException(status_code=404, detail="User not found")
+
+    logger.info("Fetching heatmap data (user=%s)", user.username)
 
     today = date.today()
     one_year_ago = today - timedelta(days=364)
@@ -238,6 +261,11 @@ def get_user_heatmap(
         else:
             run = 0
 
+    logger.info(
+        "Heatmap computed (user=%s, active_days=%d, current_streak=%d, longest_streak=%d)",
+        user.username, len(activity), current_streak, longest_streak,
+    )
+
     return {
         "activity": dict(activity),
         "current_streak": current_streak,
@@ -260,6 +288,7 @@ def get_user_stats(
     uid = decoded_token.get("uid") or decoded_token.get("user_id")
     user = db.query(User).filter(User.firebase_uid == uid).first()
     if not user:
+        logger.warning("Stats requested for unknown user (uid=%s)", uid)
         return {
             "total_solved": 0,
             "success_rate": 0,
@@ -271,6 +300,11 @@ def get_user_stats(
     total_attempts = db.query(Submission).filter(Submission.user_id == user.id).count()
     total_solved = user.problems_solved or 0
     success_rate = int((total_solved / total_attempts * 100)) if total_attempts > 0 else 0
+
+    logger.info(
+        "Stats fetched (user=%s, solved=%d, success_rate=%d%%, score=%d)",
+        user.username, total_solved, success_rate, user.total_score or 0,
+    )
 
     return {
         "total_solved": total_solved,
@@ -291,9 +325,11 @@ def get_my_submissions(
     uid = decoded_token.get("uid") or decoded_token.get("user_id")
     user = db.query(User).filter(User.firebase_uid == uid).first()
     if not user:
+        logger.warning("Submissions requested for unknown user (uid=%s)", uid)
         return []
     
     subs = db.query(Submission).filter(Submission.user_id == user.id).order_by(Submission.created_at.desc()).all()
+    logger.info("Fetched %d submissions for user=%s", len(subs), user.username)
     
     # We can reuse the schema conversion logic if needed, but for simplicity returning dicts
     return [

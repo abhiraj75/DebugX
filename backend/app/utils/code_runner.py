@@ -11,6 +11,9 @@ import os
 import time
 from typing import List, Optional
 from app.utils.config import settings
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def run_code_against_tests(
@@ -37,7 +40,10 @@ def run_code_against_tests(
             "error_message": str | None,
         }
     """
+    logger.info("Code execution started (language=%s, test_cases=%d)", language, len(test_cases))
+
     if language != "python":
+        logger.warning("Unsupported language requested: %s", language)
         return {
             "status": "compile_error",
             "test_results": [],
@@ -68,6 +74,9 @@ def run_code_against_tests(
 
         if is_passed:
             passed += 1
+            logger.debug("Test case %d/%d: PASSED", i, total)
+        else:
+            logger.debug("Test case %d/%d: FAILED (expected=%r, actual=%r)", i, total, tc_expected, actual)
 
         if result["error"] and overall_error is None:
             overall_error = result["error"]
@@ -97,6 +106,11 @@ def run_code_against_tests(
 
     score = int((passed / total) * 100) if total > 0 else 0
 
+    logger.info(
+        "Code execution finished (status=%s, passed=%d/%d, score=%d, time=%dms)",
+        status, passed, total, score, total_time_ms,
+    )
+
     return {
         "status": status,
         "test_results": test_results,
@@ -119,6 +133,8 @@ def _execute_python(code: str, stdin_input: str, timeout: int) -> dict:
         tmp_file.write(code)
         tmp_file.close()
 
+        logger.debug("Executing user code in subprocess (timeout=%ds)", timeout)
+
         start = time.time()
         result = subprocess.run(
             [sys.executable, tmp_file.name],
@@ -132,6 +148,7 @@ def _execute_python(code: str, stdin_input: str, timeout: int) -> dict:
         error = None
         if result.returncode != 0:
             error = result.stderr.strip() if result.stderr else f"Exit code {result.returncode}"
+            logger.debug("Subprocess exited with error: %s", error[:200])
 
         return {
             "stdout": result.stdout,
@@ -141,6 +158,7 @@ def _execute_python(code: str, stdin_input: str, timeout: int) -> dict:
         }
 
     except subprocess.TimeoutExpired:
+        logger.warning("Code execution timed out after %ds", timeout)
         return {
             "stdout": "",
             "stderr": "",
@@ -148,6 +166,7 @@ def _execute_python(code: str, stdin_input: str, timeout: int) -> dict:
             "time_ms": timeout * 1000,
         }
     except Exception as e:
+        logger.error("Unexpected error during code execution: %s", str(e))
         return {
             "stdout": "",
             "stderr": "",

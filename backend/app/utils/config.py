@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     SECRET_KEY: str = "changeme"
 
+    # Logging
+    LOG_LEVEL: str = "INFO"
+
     # Code execution limits
     MAX_EXECUTION_TIME: int = 10    # seconds
     MAX_MEMORY_MB: int = 256        # megabytes

@@ -7,14 +7,17 @@ helpful, SPECIFIC hints that directly point out the bug.
 import json
 import google.generativeai as genai
 from app.utils.config import settings
+from app.utils.logger import get_logger
 from typing import List, Optional
 
+logger = get_logger(__name__)
 
 # Configure the SDK
 genai.configure(api_key=settings.GEMINI_API_KEY)
 
 # Use Gemini 2.5 Flash as it is supported in the current API key quota
 model = genai.GenerativeModel("gemini-2.5-flash")
+logger.info("Gemini AI model initialized (model=gemini-2.5-flash)")
 
 
 SYSTEM_PROMPT = """You are a Python tutor. A beginner student's code failed some test cases. You can see their code, the input, what their code printed, and what the correct output should be.
@@ -52,6 +55,11 @@ def get_hint(
 
     failed_test_details: list of {"input": ..., "expected": ..., "actual": ...}
     """
+    logger.info(
+        "Generating AI hint for problem '%s' (passed=%d/%d)",
+        problem_title, passed_tests, total_tests,
+    )
+
     # Number the lines so the AI can reference them
     numbered_code = "\n".join(
         f"{i+1}: {line}" for i, line in enumerate(user_code.splitlines())
@@ -83,13 +91,14 @@ def get_hint(
         text = response.text.strip()
 
         result = json.loads(text)
+        logger.info("AI hint generated successfully for problem '%s'", problem_title)
         return {
             "feedback_text": result.get("feedback_text", "Check your code logic carefully."),
             "suggestions": result.get("suggestions", []),
         }
 
     except Exception as e:
-        print(f"Gemini API error: {e}")
+        logger.error("Gemini API error for problem '%s': %s", problem_title, str(e))
         return {
             "feedback_text": "AI hints are temporarily unavailable (API rate limit reached). Try again in a minute!",
             "suggestions": [
@@ -105,6 +114,7 @@ def _call_gemini(user_prompt: str, retries: int = 2):
     import time
     for attempt in range(retries + 1):
         try:
+            logger.debug("Gemini API call attempt %d/%d", attempt + 1, retries + 1)
             return model.generate_content(
                 [
                     {"role": "user", "parts": [SYSTEM_PROMPT + "\n\n" + user_prompt]},
@@ -116,7 +126,7 @@ def _call_gemini(user_prompt: str, retries: int = 2):
             )
         except Exception as e:
             if "429" in str(e) and attempt < retries:
-                print(f"Rate limited, retrying in 18s... (attempt {attempt + 1})")
+                logger.warning("Gemini rate limited, retrying in 18s (attempt %d/%d)", attempt + 1, retries)
                 time.sleep(18)
             else:
                 raise

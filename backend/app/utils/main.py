@@ -1,6 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.utils.config import settings
+from app.utils.logger import setup_logging, get_logger
+
+# ─── Initialize logging FIRST ─────────────────────────────────────────────────
+setup_logging(level=settings.LOG_LEVEL)
+logger = get_logger(__name__)
+
+logger.info("Starting Codexa API (env=%s, log_level=%s)", settings.APP_ENV, settings.LOG_LEVEL)
+
 from app.utils.database import engine, Base
 
 # Import all models so SQLAlchemy creates their tables on startup
@@ -11,6 +19,7 @@ from app.routes import users, problems, submissions
 
 # Create all DB tables
 Base.metadata.create_all(bind=engine)
+logger.info("Database tables created/verified")
 
 app = FastAPI(
     title="Codexa API",
@@ -26,19 +35,26 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+logger.info("CORS configured for origins: %s", settings.CORS_ORIGINS)
 
 # Routers
 app.include_router(users.router, prefix="/api/users", tags=["users"])
+logger.info("Registered router: /api/users")
 app.include_router(problems.router, prefix="/api/problems", tags=["problems"])
+logger.info("Registered router: /api/problems")
 app.include_router(submissions.router, prefix="/api/submissions", tags=["submissions"])
+logger.info("Registered router: /api/submissions")
 
+logger.info("Codexa API ready — all routers registered")
 
 
 @app.get("/")
 def root():
+    logger.debug("Root endpoint hit")
     return {"status": "ok", "app": "Codexa API"}
 
 
 @app.get("/health")
 def health_check():
+    logger.debug("Health check endpoint hit")
     return {"status": "healthy"}

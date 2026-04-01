@@ -10,10 +10,12 @@ from google.auth.transport import requests as google_requests
 
 from app.utils.database import get_db
 from app.utils.config import settings
+from app.utils.logger import get_logger
 from app.models.models import User, UserRole
 from app.schemas.schemas import UserUpdate
 
 router = APIRouter()
+logger = get_logger(__name__)
 
 # ─── Token Verification ───────────────────────────────────────────────────────
 
@@ -23,6 +25,7 @@ def verify_firebase_token(authorization: str = Header(...)) -> dict:
     Uses Google's public JWKS — no service account key needed.
     """
     if not authorization.startswith("Bearer "):
+        logger.warning("Invalid auth header format received")
         raise HTTPException(status_code=401, detail="Invalid auth header. Use: Bearer <token>")
     id_token_str = authorization.split("Bearer ")[1].strip()
     try:
@@ -32,8 +35,11 @@ def verify_firebase_token(authorization: str = Header(...)) -> dict:
             request,
             audience=settings.FIREBASE_PROJECT_ID,
         )
+        uid = decoded.get("uid") or decoded.get("user_id")
+        logger.info("Token verified successfully (uid=%s)", uid)
         return decoded
     except Exception as e:
+        logger.warning("Token verification failed: %s", str(e))
         raise HTTPException(status_code=401, detail=f"Token verification failed: {str(e)}")
 
 
@@ -56,6 +62,7 @@ def sync_user(
     user = db.query(User).filter(User.firebase_uid == uid).first()
 
     if user:
+        logger.info("Existing user synced (uid=%s, email=%s)", uid, email)
         user.last_login = datetime.utcnow()
         if picture and not user.avatar_url:
             user.avatar_url = picture
@@ -80,6 +87,7 @@ def sync_user(
             last_login=datetime.utcnow(),
         )
         db.add(user)
+        logger.info("New user created (uid=%s, username=%s, email=%s)", uid, username, email)
 
     db.commit()
     db.refresh(user)
@@ -92,8 +100,10 @@ def get_user_by_firebase_uid(
     db: Session = Depends(get_db),
 ):
     """Get a user's profile using their Firebase UID."""
+    logger.info("Fetching user by firebase_uid=%s", firebase_uid)
     user = db.query(User).filter(User.firebase_uid == firebase_uid).first()
     if not user:
+        logger.warning("User not found (firebase_uid=%s)", firebase_uid)
         raise HTTPException(status_code=404, detail="User not found")
     return _user_response(user)
 
@@ -104,8 +114,10 @@ def get_user_by_id(
     db: Session = Depends(get_db),
 ):
     """Get a user's profile using their DB integer ID."""
+    logger.info("Fetching user by id=%d", user_id)
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
+        logger.warning("User not found (id=%d)", user_id)
         raise HTTPException(status_code=404, detail="User not found")
     return _user_response(user)
 
@@ -123,8 +135,11 @@ def get_user_activity(
     from sqlalchemy import func
     from datetime import timedelta
 
+    logger.info("Fetching activity for user (firebase_uid=%s)", firebase_uid)
+
     user = db.query(User).filter(User.firebase_uid == firebase_uid).first()
     if not user:
+        logger.warning("User not found for activity fetch (firebase_uid=%s)", firebase_uid)
         raise HTTPException(status_code=404, detail="User not found")
 
     one_year_ago = datetime.utcnow() - timedelta(days=365)
@@ -141,6 +156,7 @@ def get_user_activity(
     )
 
     activity = {str(row.date): row.count for row in results}
+    logger.info("Activity fetched: %d active days found", len(activity))
     return {"activity": activity}
 
 
@@ -154,12 +170,14 @@ def update_user(
     uid = decoded_token.get("uid") or decoded_token.get("user_id")
     user = db.query(User).filter(User.firebase_uid == uid).first()
     if not user:
+        logger.warning("User not found for profile update (uid=%s)", uid)
         raise HTTPException(status_code=404, detail="User not found")
 
     if update_data.username:
         # Check if username is already taken by another user
         existing = db.query(User).filter(User.username == update_data.username).first()
         if existing and existing.id != user.id:
+            logger.warning("Username '%s' already taken (requested by uid=%s)", update_data.username, uid)
             raise HTTPException(status_code=400, detail="Username already taken")
         user.username = update_data.username
 
@@ -171,6 +189,7 @@ def update_user(
 
     db.commit()
     db.refresh(user)
+    logger.info("User profile updated (uid=%s, username=%s)", uid, user.username)
     return _user_response(user)
 
 
