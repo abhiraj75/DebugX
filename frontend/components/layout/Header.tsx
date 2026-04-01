@@ -64,7 +64,7 @@ export default function Header() {
                 <nav className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
                     {/* Logo */}
                     <Link href={user ? "/dashboard" : "/"} className="flex items-center space-x-2 flex-shrink-0">
-                        <span className="text-xl font-bold text-neutral-900 dark:text-white tracking-tight">Codexa</span>
+                        <span className="text-xl font-bold text-neutral-900 dark:text-white tracking-tight">DebugX</span>
                     </Link>
 
                     {/* Desktop Nav */}

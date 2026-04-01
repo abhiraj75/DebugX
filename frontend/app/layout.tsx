@@ -8,7 +8,7 @@ import Header from "@/components/layout/Header";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-    title: "Codexa — AI-Powered Coding Practice",
+    title: "DebugX — AI-Powered Coding Practice",
     description: "Practice coding problems with an AI code visualizer and step-through debugger.",
 };
 

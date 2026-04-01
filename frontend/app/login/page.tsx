@@ -54,7 +54,7 @@ export default function LoginPage() {
             <div className="max-w-sm w-full">
                 <div className="text-center mb-8">
                     <Link href="/" className="inline-flex items-center gap-2 mb-5">
-                        <span className="text-2xl font-bold text-neutral-900 dark:text-white tracking-wide">CODEXA</span>
+                        <span className="text-2xl font-bold text-neutral-900 dark:text-white tracking-wide">DEBUGX</span>
                     </Link>
                     <h1 className="text-xl font-bold text-neutral-900 dark:text-white mb-1">Welcome back</h1>
                     <p className="text-sm text-neutral-500 dark:text-neutral-400">Log in to your account to continue</p>

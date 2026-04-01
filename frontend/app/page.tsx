@@ -174,11 +174,11 @@ export default function HomePage() {
             {/* Footer */}
             <footer className="border-t border-neutral-200 dark:border-neutral-800">
                 <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-                    <span className="text-sm font-bold text-neutral-900 dark:text-white tracking-tight">Codexa</span>
+                    <span className="text-sm font-bold text-neutral-900 dark:text-white tracking-tight">DebugX</span>
                     <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-xs text-neutral-400 dark:text-neutral-500">
                         <Link href="/privacy" className="hover:text-neutral-900 dark:hover:text-white transition-colors">Privacy Policy</Link>
                         <Link href="/terms" className="hover:text-neutral-900 dark:hover:text-white transition-colors">Terms of Service</Link>
-                        <span>© 2026 Codexa. Built by Abhiraj &amp; Tuhin.</span>
+                        <span>© 2026 DebugX. Built by Abhiraj &amp; Tuhin.</span>
                     </div>
                 </div>
             </footer>
