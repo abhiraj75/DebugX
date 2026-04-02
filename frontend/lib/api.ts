@@ -191,9 +191,9 @@ export interface TraceResult {
 }
 
 /** Trace Python code execution step-by-step */
-export async function visualizeCode(code: string): Promise<TraceResult> {
+export async function visualizeCode(code: string, stdin: string = ""): Promise<TraceResult> {
     return apiFetch("/api/visualize", {
         method: "POST",
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code, stdin }),
     });
 }

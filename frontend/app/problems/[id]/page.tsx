@@ -29,7 +29,7 @@ export default function ProblemSolvePage() {
     const [language, setLanguage] = useState<"python">("python");
     const [code, setCode] = useState("");
     const [result, setResult] = useState<SubmissionResult | null>(null);
-    const [activeTab, setActiveTab] = useState<"console" | "tests" | "feedback">("console");
+    const [activeTab, setActiveTab] = useState<"console" | "tests" | "feedback" | "visualizer">("console");
 
     useEffect(() => {
         const load = async () => {
@@ -75,6 +75,13 @@ export default function ProblemSolvePage() {
         setResult(null);
         setError(null);
         setActiveTab("console");
+    };
+
+    const handleVisualizeRedirect = () => {
+        sessionStorage.setItem("visualizer_code", code);
+        const defaultTest = problem?.examples?.[0]?.input || "";
+        sessionStorage.setItem("visualizer_stdin", defaultTest);
+        router.push("/visualizer");
     };
 
     if (loading) {
@@ -232,7 +239,7 @@ export default function ProblemSolvePage() {
                                 <div className="bg-white dark:bg-neutral-950 flex flex-col h-full border-t border-neutral-200 dark:border-neutral-800">
                             {/* Tabs */}
                             <div className="flex border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/50">
-                                {(["console", "tests", "feedback"] as const).map(tab => (
+                                {(["console", "tests", "feedback", "visualizer"] as const).map(tab => (
                                     <button
                                         key={tab}
                                         onClick={() => setActiveTab(tab)}
@@ -241,7 +248,7 @@ export default function ProblemSolvePage() {
                                             : "text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300"
                                             }`}
                                     >
-                                        {tab === "tests" ? "Test Cases" : tab === "feedback" ? "AI Feedback" : "Console"}
+                                        {tab === "tests" ? "Test Cases" : tab === "feedback" ? "AI Feedback" : tab === "visualizer" ? "Visualizer" : "Console"}
                                     </button>
                                 ))}
                             </div>
@@ -325,6 +332,30 @@ export default function ProblemSolvePage() {
                                         ) : (
                                             <p className="text-neutral-500 font-sans">No feedback generated for this submission.</p>
                                         )}
+                                    </div>
+                                )}
+
+                                {/* Visualizer */}
+                                {activeTab === "visualizer" && (
+                                    <div className="flex flex-col items-center justify-center h-full text-center space-y-4 pt-10 pb-10">
+                                        <div className="bg-neutral-100 dark:bg-neutral-800/50 p-6 rounded-2xl border border-neutral-200 dark:border-neutral-800 max-w-sm w-full mx-auto shadow-sm">
+                                            <div className="w-12 h-12 bg-neutral-200 dark:bg-neutral-800 rounded-xl flex items-center justify-center mx-auto mb-4 border border-neutral-300 dark:border-neutral-700">
+                                                <svg className="w-6 h-6 text-neutral-600 dark:text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                </svg>
+                                            </div>
+                                            <h3 className="text-lg font-bold text-neutral-900 dark:text-white mb-2 tracking-tight">Visualize Code</h3>
+                                            <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-6 font-sans leading-relaxed">
+                                                Step through your code execution line-by-line using the default test case inputs.
+                                            </p>
+                                            <button 
+                                                onClick={handleVisualizeRedirect}
+                                                className="w-full bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-bold px-4 py-3 rounded-xl text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md"
+                                            >
+                                                Visualize This Code
+                                            </button>
+                                        </div>
                                     </div>
                                 )}
 
