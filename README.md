@@ -1,8 +1,8 @@
 # DebugX 🚀
 
-> An **AI-powered coding practice platform** with real-time code execution, AI feedback, step-by-step code visualization, and progress tracking — built as part of OJT 2026.
+> An **AI-powered coding practice platform** with real-time code execution, AI feedback, step-by-step code visualization, structured learning paths, and progress tracking — built as part of OJT 2026.
 
-DebugX helps users solve coding problems, submit solutions, receive instant AI-powered feedback (via Gemini), track progress through heatmaps and streaks, bookmark problems, and visualize code execution line-by-line. Authentication is handled by Firebase; data lives in Neon PostgreSQL (production) or SQLite (local development); and the frontend is built with Next.js 14.
+DebugX helps users solve coding problems, submit solutions, receive instant AI-powered feedback (via Gemini), learn programming through structured interactive courses, track progress through heatmaps and streaks, bookmark problems, and visualize code execution line-by-line. Authentication is handled by Firebase; data lives in Neon PostgreSQL (production) or SQLite (local development); and the frontend is built with Next.js 14.
 
 ---
 
@@ -87,7 +87,12 @@ OJT-2026/
     │   ├── profile/                → Multi-tab user profile settings
     │   ├── bookmarks/              → Bookmarked problems page
     │   ├── visualizer/             → AI Code Visualizer page
-    │   └── learning/               → Learning tracks (planned)
+    │   └── learning/               → Structured Learning Path
+    │       ├── page.tsx            → All learning tracks listing with progress bars
+    │       └── [id]/               → Dynamic track detail page
+    │           ├── page.tsx        → Track overview — module list with per-module progress
+    │           └── [moduleId]/     → Dynamic module lesson page
+    │               └── page.tsx    → Interactive lesson: content, code examples, MCQ quizzes
     │
     ├── components/
     │   ├── layout/
@@ -101,6 +106,9 @@ OJT-2026/
     │
     ├── contexts/
     │   └── AuthContext.tsx         → Firebase Auth state + backend sync
+    │
+    ├── data/
+    │   └── python-course.ts        → Full Python course data (9 modules, sections, MCQs)
     │
     └── lib/
         ├── firebase.ts            → Firebase app initialization
@@ -136,7 +144,9 @@ OJT-2026/
 | Production deployment (Vercel + Render) | ✅ Done |
 | Database seeding scripts | ✅ Done |
 | Centralized logging (backend + frontend) | ✅ Done |
-| Learning tracks & modules | 🔴 Planned |
+| Learning tracks & modules (frontend) | ✅ Done |
+| Structured Python Course (9 modules, MCQs) | ✅ Done |
+| Local progress tracking (localStorage) | ✅ Done |
 
 ---
 
@@ -260,6 +270,51 @@ npm run dev
 | **Frontend** | `npm run dev` | http://localhost:3000 |
 
 > 💡 **Tip:** Use two terminal tabs — one for each server. Both must be running simultaneously.
+
+---
+
+## 📚 Learning Path
+
+DebugX includes a fully built, frontend-driven **Learning Path** module — no backend required for progress tracking.
+
+### How It Works
+
+- Navigate to `/learning` to browse all available tracks.
+- Select a track (e.g., *Python Programming*) to see its modules.
+- Open a module to go through sections with:
+  - Theory content with key points & important notes
+  - Live code examples with expected output
+  - Comparison tables
+  - Multiple-choice quizzes (MCQs) with instant feedback
+- Progress is saved automatically in `localStorage` and visualized with progress bars.
+
+### Current Courses
+
+| Track | Language | Modules | Sections | Quizzes |
+|---|---|---|---|---|
+| **Python Programming** | Python | 9 | 50+ | 70+ |
+
+### Module Breakdown — Python Programming
+
+| # | Module | Topics |
+|---|---|---|
+| 01 | Introduction to Python & Basics | Variables, Data Types, Input/Output, Type Casting |
+| 02 | Operators & Expressions | Arithmetic, Comparison, Logical, Assignment, Precedence |
+| 03 | Control Flow | if/else, elif, Nested conditions, for/while loops, break/continue |
+| 04 | Data Structures | Lists, Tuples, Sets, Dictionaries |
+| 05 | Functions | Parameters, Return values, Lambda, Recursion |
+| 06 | String Operations | Slicing, Methods, Formatting |
+| 07 | File Handling | Read/Write files, Context managers |
+| 08 | Object-Oriented Programming | Classes, Inheritance, Polymorphism |
+| 09 | Exception Handling | try/except, finally, Custom exceptions |
+
+### Routing
+
+```
+/learning                          → Track listing
+/learning/:trackId                 → Track detail (module list)
+/learning/:trackId/:moduleId       → Module lesson (content + quiz)
+```
 
 ---
 
