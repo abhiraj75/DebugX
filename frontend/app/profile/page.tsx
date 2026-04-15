@@ -3,12 +3,14 @@
 import ProtectedRoute from "@/components/layout/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
-import { Loader2, User, Settings, ShieldAlert, LogOut } from "lucide-react";
+import { Loader2, User, Settings, ShieldAlert, LogOut, Sparkles, Key, Check, Trash2 } from "lucide-react";
 import { getLogger } from "@/lib/logger";
+import { deleteApiKey } from "@/lib/api";
+import ApiKeyModal from "@/components/ui/ApiKeyModal";
 
 const logger = getLogger("Profile");
 
-type Tab = "personal" | "account" | "danger";
+type Tab = "personal" | "account" | "ai" | "danger";
 
 export default function ProfilePage() {
     const { user, dbUser, syncUserWithBackend, signOut } = useAuth();
@@ -16,6 +18,8 @@ export default function ProfilePage() {
     const [isEditing, setIsEditing] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState<{ text: string, type: "success" | "error" } | null>(null);
+    const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+    const [removingKey, setRemovingKey] = useState(false);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -75,6 +79,7 @@ export default function ProfilePage() {
     const tabs: { key: Tab; label: string; icon: any }[] = [
         { key: "personal", label: "Personal Information", icon: User },
         { key: "account", label: "Account Settings", icon: Settings },
+        { key: "ai", label: "AI Settings", icon: Sparkles },
         { key: "danger", label: "Danger Zone", icon: ShieldAlert },
     ];
 
@@ -117,7 +122,9 @@ export default function ProfilePage() {
                                                     activeTab === tab.key
                                                         ? tab.key === "danger"
                                                             ? "border-red-500 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/10"
-                                                            : "border-neutral-900 dark:border-white text-neutral-900 dark:text-white bg-neutral-50 dark:bg-neutral-800"
+                                                            : tab.key === "ai"
+                                                                ? "border-neutral-900 dark:border-white text-neutral-900 dark:text-white bg-neutral-50 dark:bg-neutral-800"
+                                                                : "border-neutral-900 dark:border-white text-neutral-900 dark:text-white bg-neutral-50 dark:bg-neutral-800"
                                                         : "border-transparent text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-50 dark:hover:bg-neutral-800"
                                                 }`}
                                             >
@@ -281,6 +288,92 @@ export default function ProfilePage() {
                                 </div>
                             )}
 
+                            {/* AI SETTINGS TAB */}
+                            {activeTab === "ai" && (
+                                <div className="border border-neutral-200 dark:border-neutral-800 rounded-xl bg-white dark:bg-neutral-900 overflow-hidden shadow-sm transition-all duration-300">
+                                    <div className="px-8 py-6 border-b border-neutral-100 dark:border-neutral-800">
+                                        <h3 className="text-base font-bold text-neutral-900 dark:text-white flex items-center gap-2">
+                                            <Sparkles className="w-4 h-4" />
+                                            AI Settings
+                                        </h3>
+                                        <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-1">
+                                            Manage your Gemini API key for AI-powered hints
+                                        </p>
+                                    </div>
+                                    <div className="p-8 space-y-6">
+                                        {/* API Key Status */}
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 border border-neutral-100 dark:border-neutral-800 rounded-xl">
+                                            <div className="flex items-start gap-3">
+                                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                                    dbUser?.has_gemini_key
+                                                        ? "bg-green-100 dark:bg-green-900/30"
+                                                        : "bg-neutral-100 dark:bg-neutral-800"
+                                                }`}>
+                                                    {dbUser?.has_gemini_key ? (
+                                                        <Check className="w-5 h-5 text-green-600 dark:text-green-400" />
+                                                    ) : (
+                                                        <Key className="w-5 h-5 text-neutral-400 dark:text-neutral-500" />
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-bold text-neutral-900 dark:text-white">
+                                                        Gemini API Key
+                                                    </p>
+                                                    <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">
+                                                        {dbUser?.has_gemini_key
+                                                            ? "Your API key is configured. AI hints are enabled."
+                                                            : "No API key set. Add one to enable AI hints."
+                                                        }
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={() => setShowApiKeyModal(true)}
+                                                    className="bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-bold px-4 py-2 rounded-lg hover:bg-neutral-800 dark:hover:bg-neutral-100 transition-all text-xs"
+                                                >
+                                                    {dbUser?.has_gemini_key ? "Update Key" : "Add Key"}
+                                                </button>
+                                                {dbUser?.has_gemini_key && (
+                                                    <button
+                                                        onClick={async () => {
+                                                            if (!confirm("Remove your API key? AI hints will be disabled.")) return;
+                                                            setRemovingKey(true);
+                                                            try {
+                                                                await deleteApiKey();
+                                                                await syncUserWithBackend();
+                                                                setMessage({ text: "API key removed.", type: "success" });
+                                                                setTimeout(() => setMessage(null), 3000);
+                                                            } catch (err: any) {
+                                                                setMessage({ text: err.message, type: "error" });
+                                                            } finally {
+                                                                setRemovingKey(false);
+                                                            }
+                                                        }}
+                                                        disabled={removingKey}
+                                                        className="border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 font-bold px-4 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-all text-xs disabled:opacity-50 flex items-center gap-1.5"
+                                                    >
+                                                        {removingKey ? (
+                                                            <Loader2 className="w-3 h-3 animate-spin" />
+                                                        ) : (
+                                                            <Trash2 className="w-3 h-3" />
+                                                        )}
+                                                        Remove
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Info note */}
+                                        <div className="bg-neutral-50 dark:bg-neutral-800/50 rounded-lg p-4 border border-neutral-100 dark:border-neutral-800">
+                                            <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                                                Your API key is encrypted and stored securely. It is only used server-side to generate AI hints when you submit code. We never share your key with third parties.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* DANGER ZONE TAB */}
                             {activeTab === "danger" && (
                                 <div className="border border-red-200 dark:border-red-900 rounded-xl bg-white dark:bg-neutral-900 overflow-hidden shadow-sm transition-all duration-300">
@@ -317,6 +410,17 @@ export default function ProfilePage() {
                         </div>
                     </div>
                 </div>
+
+                {/* API Key Modal */}
+                <ApiKeyModal
+                    isOpen={showApiKeyModal}
+                    onClose={() => setShowApiKeyModal(false)}
+                    onSaved={() => {
+                        syncUserWithBackend();
+                        setMessage({ text: "API key saved! AI hints are now enabled.", type: "success" });
+                        setTimeout(() => setMessage(null), 3000);
+                    }}
+                />
             </div>
         </ProtectedRoute>
     );

@@ -2,6 +2,9 @@
 Gemini AI integration for generating code hints.
 Uses the google-generativeai SDK to call Gemini and return
 helpful, SPECIFIC hints that directly point out the bug.
+
+Supports per-user API keys: if a user has their own key, it's used
+instead of the server's default key.
 """
 
 import json
@@ -12,12 +15,15 @@ from typing import List, Optional
 
 logger = get_logger(__name__)
 
-# Configure the SDK
-genai.configure(api_key=settings.GEMINI_API_KEY)
+# Configure the SDK with the server's default key (fallback)
+if settings.GEMINI_API_KEY:
+    genai.configure(api_key=settings.GEMINI_API_KEY)
+    logger.info("Gemini AI configured with server default key")
+else:
+    logger.warning("No server GEMINI_API_KEY set — users must provide their own")
 
-# Use Gemini 2.5 Flash as it is supported in the current API key quota
-model = genai.GenerativeModel("gemini-2.5-flash")
-logger.info("Gemini AI model initialized (model=gemini-2.5-flash)")
+# Default model name
+MODEL_NAME = "gemini-2.5-flash"
 
 
 SYSTEM_PROMPT = """You are a Python tutor. A beginner student's code failed some test cases. You can see their code, the input, what their code printed, and what the correct output should be.
@@ -41,6 +47,21 @@ FORMAT — return ONLY this JSON:
 }"""
 
 
+def _get_model(api_key: Optional[str] = None):
+    """
+    Get a GenerativeModel instance. If a user-specific API key is provided,
+    create a fresh client with that key. Otherwise use the server default.
+    """
+    if api_key:
+        # Per-user key: configure a separate client
+        user_genai = genai
+        user_genai.configure(api_key=api_key)
+        return user_genai.GenerativeModel(MODEL_NAME)
+    else:
+        # Server default
+        return genai.GenerativeModel(MODEL_NAME)
+
+
 def get_hint(
     problem_title: str,
     problem_description: str,
@@ -49,15 +70,17 @@ def get_hint(
     total_tests: int,
     failed_test_details: Optional[List[dict]] = None,
     error_message: Optional[str] = None,
+    api_key: Optional[str] = None,
 ) -> dict:
     """
     Call Gemini to generate a specific hint.
 
     failed_test_details: list of {"input": ..., "expected": ..., "actual": ...}
+    api_key: optional user-specific Gemini API key
     """
     logger.info(
-        "Generating AI hint for problem '%s' (passed=%d/%d)",
-        problem_title, passed_tests, total_tests,
+        "Generating AI hint for problem '%s' (passed=%d/%d, user_key=%s)",
+        problem_title, passed_tests, total_tests, "yes" if api_key else "server",
     )
 
     # Number the lines so the AI can reference them
@@ -87,7 +110,7 @@ def get_hint(
     user_prompt = "\n".join(parts)
 
     try:
-        response = _call_gemini(user_prompt)
+        response = _call_gemini(user_prompt, api_key=api_key)
         text = response.text.strip()
 
         result = json.loads(text)
@@ -109,9 +132,12 @@ def get_hint(
         }
 
 
-def _call_gemini(user_prompt: str, retries: int = 2):
+def _call_gemini(user_prompt: str, retries: int = 2, api_key: Optional[str] = None):
     """Call Gemini with automatic retry on rate limit errors."""
     import time
+
+    model = _get_model(api_key)
+
     for attempt in range(retries + 1):
         try:
             logger.debug("Gemini API call attempt %d/%d", attempt + 1, retries + 1)
@@ -130,3 +156,23 @@ def _call_gemini(user_prompt: str, retries: int = 2):
                 time.sleep(18)
             else:
                 raise
+
+
+def validate_api_key(api_key: str) -> bool:
+    """
+    Test whether an API key is valid by making a lightweight Gemini call.
+    Returns True if the key works, False otherwise.
+    """
+    try:
+        model = _get_model(api_key)
+        response = model.generate_content(
+            "Reply with exactly: OK",
+            generation_config=genai.GenerationConfig(
+                temperature=0,
+                max_output_tokens=5,
+            ),
+        )
+        return True
+    except Exception as e:
+        logger.warning("API key validation failed: %s", str(e))
+        return False

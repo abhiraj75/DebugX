@@ -9,6 +9,7 @@ from app.models.models import Problem, Submission, SubmissionStatus, AIFeedback,
 from app.schemas.schemas import SubmissionCreate, SubmissionOut, AIFeedbackOut, TestCaseResult
 from app.utils.code_runner import run_code_against_tests
 from app.utils.gemini import get_hint
+from app.utils.encryption import decrypt_api_key
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -134,42 +135,64 @@ def submit_code(
     # 7. Generate AI feedback if not fully accepted
     feedback_data = None
     if submission.status != SubmissionStatus.ACCEPTED:
-        logger.info("Generating AI feedback for submission %d", submission.id)
-        # Send full failed test details to Gemini (input + expected + actual)
-        # so it can compare outputs and find the exact bug
-        failed_test_details = [
-            {
-                "input": tr["input"],
-                "expected": tr["expected"],
-                "actual": tr["actual"] or "(no output)",
-            }
-            for tr in run_result["test_results"] if not tr["passed"]
-        ]
+        # Resolve the user's Gemini API key (or fall back to server key)
+        user_api_key = None
+        if user.gemini_api_key:
+            try:
+                user_api_key = decrypt_api_key(user.gemini_api_key)
+            except ValueError:
+                logger.warning("Failed to decrypt API key for user %s", user.username)
 
-        hint = get_hint(
-            problem_title=problem.title,
-            problem_description=problem.description,
-            user_code=body.code,
-            passed_tests=run_result["passed_tests"],
-            total_tests=run_result["total_tests"],
-            failed_test_details=failed_test_details,
-            error_message=run_result["error_message"],
-        )
+        # Skip hint generation if no key is available at all
+        from app.utils.config import settings as app_settings
+        if not user_api_key and not app_settings.GEMINI_API_KEY:
+            logger.info("No API key available for AI hints (user=%s)", user.username)
+            feedback_data = AIFeedbackOut(
+                feedback_text="Set up your Gemini API key in Profile Settings to get AI-powered hints.",
+                suggestions=[
+                    "Go to Profile → Account Settings → AI Settings",
+                    "Get a free API key from Google AI Studio",
+                    "Compare your output with the expected output manually",
+                ],
+            )
+        else:
+            logger.info("Generating AI feedback for submission %d", submission.id)
+            # Send full failed test details to Gemini (input + expected + actual)
+            # so it can compare outputs and find the exact bug
+            failed_test_details = [
+                {
+                    "input": tr["input"],
+                    "expected": tr["expected"],
+                    "actual": tr["actual"] or "(no output)",
+                }
+                for tr in run_result["test_results"] if not tr["passed"]
+            ]
 
-        ai_feedback = AIFeedback(
-            submission_id=submission.id,
-            feedback_text=hint["feedback_text"],
-            suggestions=hint["suggestions"],
-        )
-        db.add(ai_feedback)
-        db.commit()
-        db.refresh(ai_feedback)
-        logger.info("AI feedback saved (submission_id=%d)", submission.id)
+            hint = get_hint(
+                problem_title=problem.title,
+                problem_description=problem.description,
+                user_code=body.code,
+                passed_tests=run_result["passed_tests"],
+                total_tests=run_result["total_tests"],
+                failed_test_details=failed_test_details,
+                error_message=run_result["error_message"],
+                api_key=user_api_key,
+            )
 
-        feedback_data = AIFeedbackOut(
-            feedback_text=ai_feedback.feedback_text,
-            suggestions=ai_feedback.suggestions,
-        )
+            ai_feedback = AIFeedback(
+                submission_id=submission.id,
+                feedback_text=hint["feedback_text"],
+                suggestions=hint["suggestions"],
+            )
+            db.add(ai_feedback)
+            db.commit()
+            db.refresh(ai_feedback)
+            logger.info("AI feedback saved (submission_id=%d)", submission.id)
+
+            feedback_data = AIFeedbackOut(
+                feedback_text=ai_feedback.feedback_text,
+                suggestions=ai_feedback.suggestions,
+            )
 
     # 8. Build response — allow viewing full test results
     sanitized_results = []

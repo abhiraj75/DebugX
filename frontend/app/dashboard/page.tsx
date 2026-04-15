@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { fetchUserHeatmap, fetchUserStats, fetchUserSubmissions, fetchProblems, HeatmapData, SubmissionResult } from "@/lib/api";
 import { getLogger } from "@/lib/logger";
+import ApiKeyModal from "@/components/ui/ApiKeyModal";
 
 const logger = getLogger("Dashboard");
 
@@ -240,13 +241,14 @@ function ActivityHeatmap({ heatmap }: { heatmap: HeatmapData }) {
 // ── Main Dashboard Page ───────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-    const { user, dbUser, loading: authLoading } = useAuth();
+    const { user, dbUser, loading: authLoading, syncUserWithBackend } = useAuth();
     const router = useRouter();
     const [submissions, setSubmissions] = useState<SubmissionResult[]>([]);
     const [heatmap, setHeatmap] = useState<HeatmapData | null>(null);
     const [stats, setStats] = useState<any>(null);
     const [totalProblemsCount, setTotalProblemsCount] = useState(0);
     const [loadingData, setLoadingData] = useState(true);
+    const [showApiKeyModal, setShowApiKeyModal] = useState(false);
 
     useEffect(() => {
         // If auth is still loading, wait
@@ -284,6 +286,21 @@ export default function DashboardPage() {
         fetchData();
     }, [user, dbUser?.id, authLoading]);
 
+    // Show API key modal if user hasn't set one up
+    useEffect(() => {
+        if (!dbUser) return;
+        if (dbUser.has_gemini_key) return;
+
+        // Check localStorage dismissal (7-day cooldown)
+        const dismissed = localStorage.getItem("apikey_modal_dismissed");
+        if (dismissed) {
+            const daysSince = (Date.now() - parseInt(dismissed)) / (1000 * 60 * 60 * 24);
+            if (daysSince < 7) return;
+        }
+
+        setShowApiKeyModal(true);
+    }, [dbUser]);
+
     const displayName = dbUser?.display_name || user?.displayName || user?.email?.split("@")[0] || "User";
     const avatarInitials = displayName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
 
@@ -310,6 +327,15 @@ export default function DashboardPage() {
     return (
         <ProtectedRoute>
             <div className="min-h-screen bg-white dark:bg-neutral-950">
+                    {/* API Key Setup Modal */}
+                    <ApiKeyModal
+                        isOpen={showApiKeyModal}
+                        onClose={() => setShowApiKeyModal(false)}
+                        onSaved={() => {
+                            // Re-sync user to update has_gemini_key
+                            syncUserWithBackend();
+                        }}
+                    />
                 <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
                     {/* Welcome Banner */}
                     <div className="flex flex-col sm:flex-row sm:items-center gap-5 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 mb-8 bg-neutral-50 dark:bg-neutral-900">

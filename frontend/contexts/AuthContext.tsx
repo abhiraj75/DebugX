@@ -30,6 +30,7 @@ interface DBUser {
     problems_solved: number;
     current_streak: number;
     bio?: string;
+    has_gemini_key?: boolean;
     created_at?: string;
 }
 

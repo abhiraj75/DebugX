@@ -198,6 +198,37 @@ export async function visualizeCode(code: string, stdin: string = ""): Promise<T
     });
 }
 
+// ─── API Key Management ──────────────────────────────────────────────────────
+
+/** Save user's Gemini API key */
+export async function saveApiKey(apiKey: string): Promise<{ saved: boolean; has_gemini_key: boolean }> {
+    return apiFetch("/api/users/api-key", {
+        method: "POST",
+        body: JSON.stringify({ api_key: apiKey }),
+    });
+}
+
+/** Check if user has a Gemini API key configured */
+export async function getApiKeyStatus(): Promise<{ has_key: boolean }> {
+    return apiFetch("/api/users/api-key/status");
+}
+
+/** Remove user's stored Gemini API key */
+export async function deleteApiKey(): Promise<{ deleted: boolean; has_gemini_key: boolean }> {
+    return apiFetch("/api/users/api-key", {
+        method: "DELETE",
+    });
+}
+
+/** Validate a Gemini API key before saving */
+export async function validateApiKey(apiKey: string): Promise<{ valid: boolean }> {
+    return apiFetch("/api/users/api-key/validate", {
+        method: "POST",
+        body: JSON.stringify({ api_key: apiKey }),
+    });
+}
+
+
 // ─── Bookmarks API ───────────────────────────────────────────────────────────
 
 export interface Bookmark {

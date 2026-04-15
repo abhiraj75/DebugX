@@ -38,6 +38,9 @@ class User(Base):
     # Profile information
     bio = Column(Text)
     avatar_url = Column(String(500))
+
+    # User's own Gemini API key (Fernet-encrypted at rest)
+    gemini_api_key = Column(Text, nullable=True)
     
     # Statistics
     total_score = Column(Integer, default=0)

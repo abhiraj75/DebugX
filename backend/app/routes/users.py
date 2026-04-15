@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
 from datetime import datetime
+from pydantic import BaseModel
 
 # Use google-auth (already installed via firebase-admin) to verify tokens
 # This works WITHOUT a service account key — uses Google's public JWKS endpoint
@@ -13,6 +14,7 @@ from app.utils.config import settings
 from app.utils.logger import get_logger
 from app.models.models import User, UserRole
 from app.schemas.schemas import UserUpdate
+from app.utils.encryption import encrypt_api_key, decrypt_api_key
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -193,6 +195,88 @@ def update_user(
     return _user_response(user)
 
 
+# ─── API Key Management ───────────────────────────────────────────────────────
+
+class ApiKeyBody(BaseModel):
+    api_key: str
+
+
+@router.post("/api-key", summary="Save Gemini API Key")
+def save_api_key(
+    body: ApiKeyBody,
+    decoded_token: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+):
+    """Save or update the user's Gemini API key (stored encrypted)."""
+    uid = decoded_token.get("uid") or decoded_token.get("user_id")
+    user = db.query(User).filter(User.firebase_uid == uid).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    key = body.api_key.strip()
+    if not key:
+        raise HTTPException(status_code=400, detail="API key cannot be empty")
+
+    # Encrypt and store
+    user.gemini_api_key = encrypt_api_key(key)
+    db.commit()
+    logger.info("Gemini API key saved (uid=%s)", uid)
+    return {"saved": True, "has_gemini_key": True}
+
+
+@router.get("/api-key/status", summary="Check API Key Status")
+def get_api_key_status(
+    decoded_token: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+):
+    """Check if the user has a Gemini API key configured. Never reveals the key."""
+    uid = decoded_token.get("uid") or decoded_token.get("user_id")
+    user = db.query(User).filter(User.firebase_uid == uid).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    has_key = bool(user.gemini_api_key)
+    logger.info("API key status check (uid=%s, has_key=%s)", uid, has_key)
+    return {"has_key": has_key}
+
+
+@router.delete("/api-key", summary="Remove Gemini API Key")
+def delete_api_key(
+    decoded_token: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+):
+    """Remove the user's stored Gemini API key."""
+    uid = decoded_token.get("uid") or decoded_token.get("user_id")
+    user = db.query(User).filter(User.firebase_uid == uid).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.gemini_api_key = None
+    db.commit()
+    logger.info("Gemini API key removed (uid=%s)", uid)
+    return {"deleted": True, "has_gemini_key": False}
+
+
+@router.post("/api-key/validate", summary="Validate Gemini API Key")
+def validate_user_api_key(
+    body: ApiKeyBody,
+    decoded_token: dict = Depends(verify_firebase_token),
+):
+    """Test whether a Gemini API key is valid by making a lightweight call."""
+    from app.utils.gemini import validate_api_key
+
+    key = body.api_key.strip()
+    if not key:
+        raise HTTPException(status_code=400, detail="API key cannot be empty")
+
+    uid = decoded_token.get("uid") or decoded_token.get("user_id")
+    logger.info("Validating API key (uid=%s)", uid)
+
+    is_valid = validate_api_key(key)
+    logger.info("API key validation result (uid=%s, valid=%s)", uid, is_valid)
+    return {"valid": is_valid}
+
+
 # ─── Helper ───────────────────────────────────────────────────────────────────
 
 def _user_response(user: User) -> dict:
@@ -209,6 +293,7 @@ def _user_response(user: User) -> dict:
         "problems_solved": user.problems_solved,
         "current_streak": user.current_streak,
         "longest_streak": user.longest_streak,
+        "has_gemini_key": bool(user.gemini_api_key),
         "created_at": user.created_at.isoformat(),
         "last_login": user.last_login.isoformat() if user.last_login else None,
     }
