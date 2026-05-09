@@ -10,6 +10,10 @@ connect_args = {"check_same_thread": False} if settings.DATABASE_URL.startswith(
 engine = create_engine(
     settings.DATABASE_URL,
     connect_args=connect_args,
+    pool_pre_ping=True,        # Test connection liveness before each request
+    pool_recycle=300,           # Recycle connections every 5 min (Neon idle timeout)
+    pool_size=5,               # Keep 5 connections in pool
+    max_overflow=10,            # Allow up to 10 extra connections under load
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
