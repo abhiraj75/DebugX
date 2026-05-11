@@ -315,3 +315,32 @@ export const bookmarkApi = {
     }
 };
 
+
+// ─── Code Draft API (Auto-save) ──────────────────────────────────────────────
+
+export interface CodeDraftData {
+    found: boolean;
+    code: string | null;
+    language: string | null;
+    updated_at?: string;
+}
+
+/** Fetch saved code draft for a problem */
+export async function getDraft(problemId: number): Promise<CodeDraftData> {
+    return apiFetch(`/api/submissions/draft/${problemId}`);
+}
+
+/** Save/update code draft (auto-save) */
+export async function saveDraft(problemId: number, code: string, language: string = "python"): Promise<void> {
+    await apiFetch("/api/submissions/draft", {
+        method: "PUT",
+        body: JSON.stringify({ problem_id: problemId, code, language }),
+    });
+}
+
+/** Delete code draft (reset) */
+export async function deleteDraft(problemId: number): Promise<void> {
+    await apiFetch(`/api/submissions/draft/${problemId}`, {
+        method: "DELETE",
+    });
+}

@@ -6,7 +6,7 @@ from datetime import datetime
 from app.utils.database import get_db
 from app.utils.logger import get_logger
 from app.routes.users import verify_firebase_token
-from app.models.models import Problem, Submission, SubmissionStatus, AIFeedback, UserProgress
+from app.models.models import Problem, Submission, SubmissionStatus, AIFeedback, UserProgress, CodeDraft
 from app.schemas.schemas import SubmissionCreate, SubmissionOut, AIFeedbackOut, TestCaseResult
 from app.utils.code_runner import run_code_against_tests
 from app.utils.gemini import get_hint
@@ -478,3 +478,104 @@ def get_my_submissions(
         }
         for s in subs
     ]
+
+
+# ─── Code Draft Endpoints (Auto-save) ────────────────────────────────────────
+
+class DraftBody(BaseModel):
+    problem_id: int
+    code: str
+    language: str = "python"
+
+
+@router.get("/draft/{problem_id}", summary="Get saved code draft")
+def get_draft(
+    problem_id: int,
+    decoded_token: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+):
+    """Fetch user's saved code draft for a specific problem."""
+    from app.models.models import User
+
+    uid = decoded_token.get("uid") or decoded_token.get("user_id")
+    user = db.query(User).filter(User.firebase_uid == uid).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    draft = (
+        db.query(CodeDraft)
+        .filter(CodeDraft.user_id == user.id, CodeDraft.problem_id == problem_id)
+        .first()
+    )
+
+    if not draft:
+        return {"found": False, "code": None, "language": None}
+
+    return {
+        "found": True,
+        "code": draft.code,
+        "language": draft.language,
+        "updated_at": draft.updated_at.isoformat() if draft.updated_at else None,
+    }
+
+
+@router.put("/draft", summary="Save/update code draft")
+def save_draft(
+    body: DraftBody,
+    decoded_token: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+):
+    """Upsert user's code draft for a problem (auto-save)."""
+    from app.models.models import User
+
+    uid = decoded_token.get("uid") or decoded_token.get("user_id")
+    user = db.query(User).filter(User.firebase_uid == uid).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    draft = (
+        db.query(CodeDraft)
+        .filter(CodeDraft.user_id == user.id, CodeDraft.problem_id == body.problem_id)
+        .first()
+    )
+
+    if draft:
+        draft.code = body.code
+        draft.language = body.language
+        draft.updated_at = datetime.utcnow()
+    else:
+        draft = CodeDraft(
+            user_id=user.id,
+            problem_id=body.problem_id,
+            code=body.code,
+            language=body.language,
+        )
+        db.add(draft)
+
+    db.commit()
+    return {"saved": True}
+
+
+@router.delete("/draft/{problem_id}", summary="Delete code draft (reset)")
+def delete_draft(
+    problem_id: int,
+    decoded_token: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+):
+    """Remove user's code draft for a problem (triggered by Reset button)."""
+    from app.models.models import User
+
+    uid = decoded_token.get("uid") or decoded_token.get("user_id")
+    user = db.query(User).filter(User.firebase_uid == uid).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    deleted = (
+        db.query(CodeDraft)
+        .filter(CodeDraft.user_id == user.id, CodeDraft.problem_id == problem_id)
+        .delete()
+    )
+    db.commit()
+
+    return {"deleted": deleted > 0}
+

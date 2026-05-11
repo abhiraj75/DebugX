@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ProtectedRoute from "@/components/layout/ProtectedRoute";
 import CodeEditor from "@/components/editor/CodeEditor";
-import { fetchProblem, submitCode, runCode, runCustomInput, ProblemDetail, SubmissionResult, RunResult, CustomRunResult, bookmarkApi } from "@/lib/api";
+import { fetchProblem, submitCode, runCode, runCustomInput, ProblemDetail, SubmissionResult, RunResult, CustomRunResult, bookmarkApi, getDraft, saveDraft, deleteDraft } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { getLogger } from "@/lib/logger";
@@ -40,6 +40,10 @@ export default function ProblemSolvePage() {
     const [runningCustom, setRunningCustom] = useState(false);
     const [activeTab, setActiveTab] = useState<"console" | "tests" | "feedback" | "visualizer" | "custom">("console");
 
+    // Ref to track if code was loaded from draft (skip auto-save on initial load)
+    const draftLoadedRef = useRef(false);
+    const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
+
     useEffect(() => {
         const load = async () => {
             try {
@@ -47,9 +51,27 @@ export default function ProblemSolvePage() {
                 const data = await fetchProblem(slug);
                 setProblem(data);
                 logger.info("Problem loaded", { title: data.title, difficulty: data.difficulty });
-                if (data.starter_code?.python) {
+
+                // Try loading saved draft first, fall back to starter code
+                let codeLoaded = false;
+                try {
+                    const draft = await getDraft(data.id);
+                    if (draft.found && draft.code) {
+                        setCode(draft.code);
+                        codeLoaded = true;
+                        logger.info("Draft loaded", { problemId: data.id });
+                    }
+                } catch {
+                    // Draft fetch failed, use starter code
+                }
+
+                if (!codeLoaded && data.starter_code?.python) {
                     setCode(data.starter_code.python);
                 }
+
+                // Mark draft as loaded so auto-save doesn't fire immediately
+                setTimeout(() => { draftLoadedRef.current = true; }, 500);
+
                 if (dbUser?.id) {
                     const ids = await bookmarkApi.getIds(dbUser.id);
                     setIsBookmarked(ids.includes(data.id));
@@ -62,7 +84,28 @@ export default function ProblemSolvePage() {
             }
         };
         load();
+
+        return () => {
+            if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        };
     }, [slug]);
+
+    // Auto-save draft with 2s debounce
+    useEffect(() => {
+        if (!draftLoadedRef.current || !problem) return;
+
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+
+        saveTimerRef.current = setTimeout(() => {
+            saveDraft(problem.id, code, language).catch(() => {
+                // Silent fail — auto-save is best-effort
+            });
+        }, 2000);
+
+        return () => {
+            if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        };
+    }, [code, problem, language]);
 
     const handleRun = async () => {
         if (!problem) return;
@@ -129,6 +172,12 @@ export default function ProblemSolvePage() {
         setCustomOutput(null);
         setError(null);
         setActiveTab("console");
+        // Delete saved draft from DB
+        if (problem) {
+            draftLoadedRef.current = false; // Prevent auto-save of starter code
+            deleteDraft(problem.id).catch(() => {});
+            setTimeout(() => { draftLoadedRef.current = true; }, 500);
+        }
     };
 
     const handleVisualizeRedirect = () => {

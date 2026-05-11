@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, Enum as SQLEnum, JSON
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, Enum as SQLEnum, JSON, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
@@ -280,3 +280,24 @@ class UserLearningProgress(Base):
 
     def __repr__(self):
         return f"<UserLearningProgress User:{self.user_id} Submodule:{self.submodule_id}>"
+
+
+class CodeDraft(Base):
+    """Stores user's in-progress code for a problem (auto-saved drafts)"""
+    __tablename__ = "code_drafts"
+    __table_args__ = (
+        UniqueConstraint('user_id', 'problem_id', name='uq_user_problem_draft'),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    problem_id = Column(Integer, ForeignKey("problems.id"), nullable=False, index=True)
+    code = Column(Text, nullable=False)
+    language = Column(String(50), default="python")
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User")
+    problem = relationship("Problem")
+
+    def __repr__(self):
+        return f"<CodeDraft User:{self.user_id} Problem:{self.problem_id}>"
