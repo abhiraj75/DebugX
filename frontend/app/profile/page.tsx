@@ -20,6 +20,7 @@ export default function ProfilePage() {
     const [message, setMessage] = useState<{ text: string, type: "success" | "error" } | null>(null);
     const [showApiKeyModal, setShowApiKeyModal] = useState(false);
     const [removingKey, setRemovingKey] = useState(false);
+    const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -336,20 +337,7 @@ export default function ProfilePage() {
                                                 </button>
                                                 {dbUser?.has_gemini_key && (
                                                     <button
-                                                        onClick={async () => {
-                                                            if (!confirm("Remove your API key? AI hints will be disabled.")) return;
-                                                            setRemovingKey(true);
-                                                            try {
-                                                                await deleteApiKey();
-                                                                await syncUserWithBackend();
-                                                                setMessage({ text: "API key removed.", type: "success" });
-                                                                setTimeout(() => setMessage(null), 3000);
-                                                            } catch (err: any) {
-                                                                setMessage({ text: err.message, type: "error" });
-                                                            } finally {
-                                                                setRemovingKey(false);
-                                                            }
-                                                        }}
+                                                        onClick={() => setShowRemoveConfirm(true)}
                                                         disabled={removingKey}
                                                         className="border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 font-bold px-4 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-all text-xs disabled:opacity-50 flex items-center gap-1.5"
                                                     >
@@ -421,6 +409,57 @@ export default function ProfilePage() {
                         setTimeout(() => setMessage(null), 3000);
                     }}
                 />
+
+                {/* Remove API Key Confirmation Modal */}
+                {showRemoveConfirm && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowRemoveConfirm(false)} />
+                        <div className="relative bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-2xl w-full max-w-md p-8 animate-in fade-in zoom-in-95 duration-200">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                                    <Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" />
+                                </div>
+                                <h3 className="text-lg font-bold text-neutral-900 dark:text-white">Remove API Key</h3>
+                            </div>
+                            <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-6 leading-relaxed">
+                                Are you sure you want to remove your Gemini API key? AI-powered hints will be disabled until you add a new key.
+                            </p>
+                            <div className="flex items-center gap-3 justify-end">
+                                <button
+                                    onClick={() => setShowRemoveConfirm(false)}
+                                    className="px-5 py-2.5 text-sm font-semibold text-neutral-600 dark:text-neutral-400 border border-neutral-200 dark:border-neutral-700 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        setRemovingKey(true);
+                                        try {
+                                            await deleteApiKey();
+                                            await syncUserWithBackend();
+                                            setMessage({ text: "API key removed.", type: "success" });
+                                            setTimeout(() => setMessage(null), 3000);
+                                        } catch (err: any) {
+                                            setMessage({ text: err.message, type: "error" });
+                                        } finally {
+                                            setRemovingKey(false);
+                                            setShowRemoveConfirm(false);
+                                        }
+                                    }}
+                                    disabled={removingKey}
+                                    className="px-5 py-2.5 text-sm font-semibold bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    {removingKey ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <Trash2 className="w-4 h-4" />
+                                    )}
+                                    Remove Key
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </ProtectedRoute>
     );

@@ -435,11 +435,11 @@ export default function ProblemSolvePage() {
                                                 </div>
                                                 
                                                 {result.feedback.suggestions && result.feedback.suggestions.length > 0 && (
-                                                    <div className="border border-yellow-900/50 rounded-lg p-4 bg-yellow-950/10">
-                                                        <p className="text-xs font-mono uppercase text-yellow-500 mb-2 font-semibold tracking-wide">Suggestions ✨</p>
+                                                    <div className="border border-yellow-300 dark:border-yellow-900/50 rounded-lg p-4 bg-yellow-50 dark:bg-yellow-950/10">
+                                                        <p className="text-xs font-mono uppercase text-yellow-600 dark:text-yellow-500 mb-2 font-semibold tracking-wide">Suggestions ✨</p>
                                                         <ul className="space-y-2">
                                                             {result.feedback.suggestions.map((suggestion, idx) => (
-                                                                <li key={idx} className="flex gap-2 text-sm text-neutral-300 font-sans">
+                                                                <li key={idx} className="flex gap-2 text-sm text-neutral-700 dark:text-neutral-300 font-sans">
                                                                     <span className="text-yellow-600 mt-0.5">•</span>
                                                                     <span>{suggestion}</span>
                                                                 </li>
