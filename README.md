@@ -1,4 +1,4 @@
-# DebugX 🚀
+# DebugX 
 
 > An **AI-powered coding practice platform** with real-time code execution, AI feedback, step-by-step code visualization, structured learning paths, and progress tracking — built as part of OJT 2026.
 
