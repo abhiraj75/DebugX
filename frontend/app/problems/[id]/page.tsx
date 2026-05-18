@@ -485,12 +485,12 @@ export default function ProblemSolvePage() {
                                                 
                                                 {result.feedback.suggestions && result.feedback.suggestions.length > 0 && (
                                                     <div className="border border-yellow-300 dark:border-yellow-900/50 rounded-lg p-4 bg-yellow-50 dark:bg-yellow-950/10">
-                                                        <p className="text-xs font-mono uppercase text-yellow-600 dark:text-yellow-500 mb-2 font-semibold tracking-wide">Suggestions ✨</p>
+                                                        <p className="text-xs font-mono uppercase text-yellow-600 dark:text-yellow-500 mb-2 font-semibold tracking-wide">Suggestions</p>
                                                         <ul className="space-y-2">
                                                             {result.feedback.suggestions.map((suggestion, idx) => (
                                                                 <li key={idx} className="flex gap-2 text-sm text-neutral-700 dark:text-neutral-300 font-sans">
                                                                     <span className="text-yellow-600 mt-0.5">•</span>
-                                                                    <span>{suggestion}</span>
+                                                                    <span>{suggestion.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{27BF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{200D}\u{20E3}\u{E0020}-\u{E007F}\u{2300}-\u{23FF}\u{2B50}\u{2B55}\u{2934}-\u{2935}\u{25AA}-\u{25FE}\u{2190}-\u{21FF}\u{2460}-\u{24FF}\u{25A0}-\u{25FF}\u{2600}-\u{26FF}\u{2702}-\u{27B0}\u{1F000}-\u{1F02F}\u{1F0A0}-\u{1F0FF}✨⭐🌟💡🔍📝✅❌⚡️🎯💪🏆🚀⬆️⬇️➡️⬅️▶️◀️🔥💻🧠📌🔧🔨🛠️📊📈📉🎉🎊👍👎❓❗]/gu, '').trim()}</span>
                                                                 </li>
                                                             ))}
                                                         </ul>
