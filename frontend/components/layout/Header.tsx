@@ -35,6 +35,9 @@ export default function Header() {
         };
     }, [mobileOpen]);
 
+    // Landing page (/) owns its own terminal-styled nav. Hide the global header.
+    if (pathname === "/") return null;
+
     const isActive = (path: string) => pathname === path || pathname.startsWith(path + "/");
 
     const handleLogout = async () => {

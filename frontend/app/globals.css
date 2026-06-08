@@ -5,6 +5,21 @@
 :root {
   --background: #ffffff;
   --foreground: #111111;
+
+  /* === Terminal theme tokens (used by landing page) === */
+  --term-bg: #0a0a0a;
+  --term-bg-secondary: #111111;
+  --term-bg-card: #141414;
+  --term-border: #2a2a2a;
+  --term-green: #00ff88;
+  --term-green-dim: #00cc6a;
+  --term-red: #ff4444;
+  --term-yellow: #ffcc00;
+  --term-blue: #4488ff;
+  --term-purple: #a855f7;
+  --term-white: #e8e8e8;
+  --term-muted: #555555;
+  --term-cursor: #00ff88;
 }
 
 .dark {
@@ -27,35 +42,178 @@ body {
   .text-balance {
     text-wrap: balance;
   }
+
+  /* JetBrains Mono everywhere inside .font-term */
+  .font-term {
+    font-family: var(--font-jb-mono), "JetBrains Mono", "Fira Code",
+      ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-feature-settings: "ss02", "calt";
+  }
 }
 
-/* Clean minimal scrollbar */
+/* ============================================================
+   Terminal landing page — global styles scoped to .terminal-root
+   ============================================================ */
+
+.terminal-root {
+  background: var(--term-bg);
+  color: var(--term-white);
+  font-family: var(--font-jb-mono), "JetBrains Mono", "Fira Code",
+    ui-monospace, monospace;
+  font-size: 14px;
+  line-height: 1.7;
+  letter-spacing: 0.005em;
+}
+
+.terminal-root ::selection {
+  background: var(--term-green);
+  color: var(--term-bg);
+}
+
+/* Blinking cursor */
+.cursor-blink {
+  display: inline-block;
+  color: var(--term-cursor);
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Pulse ring (used behind primary CTA) */
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.45);
+  }
+  100% {
+    box-shadow: 0 0 0 22px rgba(0, 255, 136, 0);
+  }
+}
+.pulse-ring {
+  animation: pulse-ring 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Slow pulse-fade for scroll indicator */
+@keyframes pulse-fade {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.pulse-fade {
+  animation: pulse-fade 2.4s ease-in-out infinite;
+}
+
+/* Subtle CRT-style scanline overlay (optional, very low opacity) */
+@keyframes scan {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 4px;
+  }
+}
+.scanlines::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.025) 0px,
+    rgba(255, 255, 255, 0.025) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: overlay;
+}
+
+/* Terminal premium scrollbar (dark, green accent) */
+.terminal-root ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.terminal-root ::-webkit-scrollbar-track {
+  background: var(--term-bg-secondary);
+}
+.terminal-root ::-webkit-scrollbar-thumb {
+  background: var(--term-border);
+  border-radius: 0;
+}
+.terminal-root ::-webkit-scrollbar-thumb:hover {
+  background: var(--term-green-dim);
+}
+
+/* Default app scrollbar (non-landing) */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
-
 ::-webkit-scrollbar-track {
   background: #f1f1f1;
 }
-
 .dark ::-webkit-scrollbar-track {
   background: #1a1a1a;
 }
-
 ::-webkit-scrollbar-thumb {
   background: #ccc;
   border-radius: 3px;
 }
-
 .dark ::-webkit-scrollbar-thumb {
   background: #444;
 }
-
 ::-webkit-scrollbar-thumb:hover {
   background: #999;
 }
-
 .dark ::-webkit-scrollbar-thumb:hover {
   background: #666;
+}
+
+/* Lenis smooth-scroll required hooks */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+/* Hide scrollbar utility for horizontal module rail */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Reduced motion — kill animations & transforms inside terminal root */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .cursor-blink {
+    animation: none !important;
+  }
 }

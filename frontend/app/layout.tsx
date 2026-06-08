@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import Header from "@/components/layout/Header";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const jetbrainsMono = JetBrains_Mono({
+    subsets: ["latin"],
+    variable: "--font-jb-mono",
+    weight: ["400", "500", "600", "700"],
+});
 
 export const metadata: Metadata = {
     title: "DebugX — AI-Powered Coding Practice",
@@ -31,7 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     }}
                 />
             </head>
-            <body className={`${inter.className} bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100 transition-colors duration-200`}>
+            <body className={`${inter.className} ${jetbrainsMono.variable} bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100 transition-colors duration-200`}>
                 <ThemeProvider>
                     <AuthProvider>
                         <Header />
