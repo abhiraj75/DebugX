@@ -1,211 +1,101 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { motion } from "motion/react";
-import TerminalWindow, { CursorBlink, TermPrompt } from "@/components/ui/TerminalWindow";
-import { useTypewriter } from "@/components/ui/useTypewriter";
+import { useRef } from "react";
+import { motion, transform, useScroll, useTransform } from "motion/react";
+import ShaderCanvas from "./ShaderCanvas";
+import ScrambleText from "./ScrambleText";
 import { MagneticNextLink } from "./MagneticLink";
 
-const SPEED = 28;
+const EASE = [0.16, 1, 0.3, 1] as const;
 
-/* A line that types itself, then calls onDone when finished */
-function TypeLine({
-    text,
-    color = "white",
-    speed = SPEED,
-    startDelay = 0,
-    enabled,
-    onDone,
-    bold = false,
-    className = "",
-}: {
-    text: string;
-    color?: "white" | "green" | "muted" | "red" | "yellow";
-    speed?: number;
-    startDelay?: number;
-    enabled: boolean;
-    onDone?: () => void;
-    bold?: boolean;
-    className?: string;
-}) {
-    const { displayText, isDone } = useTypewriter({
-        text,
-        speed,
-        startDelay,
-        inView: enabled,
+export default function HeroSection({ ready }: { ready: boolean }) {
+    const ref = useRef<HTMLElement>(null);
+    const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
+    const bgScale = useTransform(scrollYProgress, [0, 1], [1, 1.35]);
+    // function mappers: keep opacity off native ScrollTimeline (see ShatterScene)
+    const bgOpacity = useTransform(scrollYProgress, transform([0, 0.9], [1, 0.15]));
+    const textScale = useTransform(scrollYProgress, [0, 1], [1, 0.82]);
+    const textOpacity = useTransform(scrollYProgress, transform([0, 0.6], [1, 0]));
+    const textBlur = useTransform(scrollYProgress, [0, 0.6], ["blur(0px)", "blur(12px)"]);
+    const textY = useTransform(scrollYProgress, [0, 1], ["0%", "-18%"]);
+
+    const fade = (delay: number) => ({
+        initial: { opacity: 0, y: 24 },
+        animate: ready ? { opacity: 1, y: 0 } : {},
+        transition: { duration: 0.9, delay, ease: EASE },
     });
 
-    const calledRef = useRef(false);
-    useEffect(() => {
-        if (isDone && !calledRef.current) {
-            calledRef.current = true;
-            onDone?.();
-        }
-    }, [isDone, onDone]);
-
-    const colors = {
-        white: "text-[var(--term-white)]",
-        green: "text-[var(--term-green)]",
-        muted: "text-[var(--term-muted)]",
-        red: "text-[var(--term-red)]",
-        yellow: "text-[var(--term-yellow)]",
-    } as const;
-
     return (
-        <div className={`${colors[color]} ${bold ? "font-semibold" : ""} ${className} min-h-[1.7em]`}>
-            {displayText}
-            {enabled && !isDone && <CursorBlink />}
-        </div>
-    );
-}
+        <section ref={ref} className="relative h-[100svh] min-h-[640px] overflow-hidden">
+            <motion.div className="absolute inset-0" style={{ scale: bgScale, opacity: bgOpacity }}>
+                <ShaderCanvas className="h-full w-full" />
+            </motion.div>
+            <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-[#050507] to-transparent" />
 
-export default function HeroSection() {
-    // chain of line indices — each line waits for previous to finish
-    const [step, setStep] = useState(0);
-    const next = () => setStep((s) => s + 1);
-
-    return (
-        <section className="relative min-h-screen flex flex-col items-center justify-center px-4 sm:px-6 pt-24 pb-16">
-            <div className="w-full max-w-3xl mx-auto">
-                <TerminalWindow title="debugx — zsh — 80x24" bodyClassName="font-term text-[13.5px] leading-[1.85] min-h-[420px]">
-                    {/* Line 1 — prompt, instant */}
-                    <div className="text-[var(--term-muted)]">
-                        <TermPrompt path="~/dev/your-journey" />
-                    </div>
-
-                    {/* Line 2 — command */}
-                    {step >= 0 && (
-                        <TypeLine
-                            text="debugx --start"
-                            color="green"
-                            enabled={step >= 0}
-                            startDelay={400}
-                            onDone={next}
-                        />
-                    )}
-
-                    {step >= 1 && (
-                        <TypeLine text="Initializing DebugX..." color="white" enabled startDelay={200} onDone={next} />
-                    )}
-
-                    {step >= 2 && (
-                        <TypeLine
-                            text="[✓] Loading problems database............. done"
-                            color="white"
-                            speed={18}
-                            startDelay={150}
-                            enabled
-                            onDone={next}
-                        />
-                    )}
-                    {step >= 3 && (
-                        <TypeLine
-                            text="[✓] Connecting AI engine.................. done"
-                            color="white"
-                            speed={18}
-                            startDelay={150}
-                            enabled
-                            onDone={next}
-                        />
-                    )}
-                    {step >= 4 && (
-                        <TypeLine
-                            text="[✓] Calibrating code visualizer........... done"
-                            color="white"
-                            speed={18}
-                            startDelay={150}
-                            enabled
-                            onDone={next}
-                        />
-                    )}
-
-                    {step >= 5 && (
-                        <TypeLine
-                            text="Welcome. Let's fix how you learn to code."
-                            color="green"
-                            speed={26}
-                            startDelay={300}
-                            bold
-                            enabled
-                            onDone={next}
-                        />
-                    )}
-
-                    {step >= 6 && <div className="h-[1.7em]" />}
-
-                    {step >= 6 && (
-                        <TypeLine
-                            text="You've been staring at the same bug for 3 hours."
-                            color="white"
-                            speed={22}
-                            startDelay={250}
-                            enabled
-                            onDone={next}
-                        />
-                    )}
-                    {step >= 7 && (
-                        <TypeLine
-                            text="# Stack Overflow: 47 tabs. ChatGPT: code that doesn't run."
-                            color="muted"
-                            speed={16}
-                            startDelay={120}
-                            enabled
-                            onDone={next}
-                        />
-                    )}
-                    {step >= 8 && (
-                        <TypeLine
-                            text="# You just want to know WHY it's broken."
-                            color="muted"
-                            speed={16}
-                            startDelay={120}
-                            enabled
-                            onDone={next}
-                        />
-                    )}
-
-                    {step >= 9 && <div className="h-[1.7em]" />}
-
-                    {step >= 9 && (
-                        <div className="text-[var(--term-green)] flex items-center">
-                            <span>$ </span>
-                            <CursorBlink />
-                        </div>
-                    )}
-                </TerminalWindow>
-
-                {/* CTAs */}
-                <motion.div
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 1.2, ease: [0.16, 1, 0.3, 1] }}
-                    className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 font-term text-[13px]"
-                >
-                    <MagneticNextLink
-                        href="/signup"
-                        className="group inline-flex items-center justify-center px-5 py-3 border border-[var(--term-green)] text-[var(--term-green)] bg-[var(--term-bg)] hover:bg-[var(--term-green)] hover:text-[var(--term-bg)] transition-colors duration-200"
-                        radius={90}
-                        strength={0.4}
-                    >
-                        [&nbsp;&nbsp;$ debugx --signup&nbsp;&nbsp;]
-                    </MagneticNextLink>
-
-                    <MagneticNextLink
-                        href="#problem"
-                        className="inline-flex items-center justify-center px-5 py-3 border border-[var(--term-border)] text-[var(--term-muted)] bg-transparent hover:border-[var(--term-white)] hover:text-[var(--term-white)] transition-colors duration-200"
-                        radius={70}
-                        strength={0.28}
-                    >
-                        [&nbsp;&nbsp;$ learn more&nbsp;&nbsp;]
-                    </MagneticNextLink>
+            <motion.div
+                className="relative z-10 mx-auto flex h-full max-w-[1400px] flex-col justify-center px-4 sm:px-8"
+                style={{ scale: textScale, opacity: textOpacity, filter: textBlur, y: textY }}
+            >
+                <motion.div {...fade(0)} className="mb-8 flex items-center gap-3 font-code text-[11px] uppercase tracking-[0.3em] text-[var(--n-muted)]">
+                    <span className="relative flex h-2 w-2">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--n-lime)] opacity-60" />
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--n-lime)]" />
+                    </span>
+                    AI debugger · visualizer · learning path
                 </motion.div>
-            </div>
 
-            {/* Scroll indicator */}
-            <div className="mt-16 pulse-fade font-term text-[11px] tracking-[0.2em] uppercase text-[var(--term-muted)] flex flex-col items-center gap-1">
-                scroll to continue
-                <span className="text-[var(--term-green)]">↓</span>
-            </div>
+                <h1 className="font-display font-black uppercase leading-[0.9] tracking-[-0.04em] text-[clamp(44px,9.5vw,152px)]">
+                    <ScrambleText text="Your code" play={ready} className="block" />
+                    <ScrambleText text="failed." play={ready} delay={250} className="block" />
+                    <motion.span
+                        className="block"
+                        initial={{ clipPath: "inset(0 100% 0 0)" }}
+                        animate={ready ? { clipPath: "inset(0 0% 0 0)" } : {}}
+                        transition={{ duration: 1.1, delay: 0.9, ease: EASE }}
+                    >
+                        <span className="shimmer-text">Here&apos;s why.</span>
+                    </motion.span>
+                </h1>
+
+                <div className="mt-10 flex flex-col gap-8 sm:flex-row sm:items-end sm:justify-between">
+                    <motion.p {...fade(1.2)} className="max-w-md text-[17px] leading-relaxed text-[#b8b8c6] sm:text-lg">
+                        Stop staring at the same bug for 3 hours. DebugX points at the exact line, explains
+                        the <em className="not-italic text-[var(--n-text)]">why</em>, and lets you watch every variable change.
+                    </motion.p>
+                    <motion.div {...fade(1.35)} className="flex flex-wrap items-center gap-3">
+                        <MagneticNextLink
+                            href="/signup"
+                            className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-[var(--n-lime)] px-7 py-4 font-code text-sm font-semibold text-[#050507]"
+                            radius={110}
+                            strength={0.45}
+                        >
+                            <span data-cursor="go" className="relative z-10">Start debugging — free</span>
+                            <span className="relative z-10 transition-transform duration-300 group-hover:translate-x-1">→</span>
+                            <span className="absolute inset-0 -translate-x-full bg-white transition-transform duration-500 ease-out group-hover:translate-x-0" />
+                        </MagneticNextLink>
+                        <a
+                            href="#shatter"
+                            className="rounded-full border border-white/15 px-6 py-4 font-code text-sm text-[var(--n-text)] backdrop-blur-sm transition-colors hover:border-white/40"
+                        >
+                            Watch it fix code ↓
+                        </a>
+                    </motion.div>
+                </div>
+            </motion.div>
+
+            <motion.div
+                {...fade(1.6)}
+                className="absolute bottom-6 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-2 font-code text-[10px] uppercase tracking-[0.3em] text-[var(--n-muted)]"
+            >
+                scroll
+                <span className="relative block h-10 w-px overflow-hidden bg-white/10">
+                    <motion.span
+                        className="absolute inset-x-0 top-0 h-1/2 bg-[var(--n-lime)]"
+                        animate={{ y: ["-100%", "200%"] }}
+                        transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+                    />
+                </span>
+            </motion.div>
         </section>
     );
 }

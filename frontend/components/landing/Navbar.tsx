@@ -1,101 +1,97 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { motion, useScroll, useMotionValueEvent } from "motion/react";
+import { useState } from "react";
+import { motion, useMotionValueEvent, useScroll, useSpring } from "motion/react";
 
+const LINKS = [
+    { href: "#shatter", label: "How it works" },
+    { href: "#visualizer", label: "Visualizer" },
+    { href: "#features", label: "Features" },
+];
+
+/** Floating glass pill. Hides on scroll down, returns on scroll up. Lime progress line on top. */
 export default function Navbar() {
-    const [scrolled, setScrolled] = useState(false);
-    const [mobileOpen, setMobileOpen] = useState(false);
-    const { scrollY } = useScroll();
+    const { scrollY, scrollYProgress } = useScroll();
+    const progress = useSpring(scrollYProgress, { stiffness: 200, damping: 30 });
+    const [hidden, setHidden] = useState(false);
+    const [open, setOpen] = useState(false);
 
     useMotionValueEvent(scrollY, "change", (v) => {
-        setScrolled(v > 12);
+        const prev = scrollY.getPrevious() ?? 0;
+        setHidden(v > prev && v > 200 && !open);
     });
 
-    // close mobile on resize up
-    useEffect(() => {
-        const onR = () => {
-            if (window.innerWidth >= 768) setMobileOpen(false);
-        };
-        window.addEventListener("resize", onR);
-        return () => window.removeEventListener("resize", onR);
-    }, []);
-
     return (
-        <header
-            className={`fixed inset-x-0 top-0 z-[80] transition-all duration-300 border-b ${
-                scrolled
-                    ? "bg-[var(--term-bg)]/85 backdrop-blur-md border-[var(--term-border)]"
-                    : "bg-[var(--term-bg)] border-transparent"
-            }`}
-        >
-            <nav className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6 font-term text-[13px]">
-                <Link href="/" className="flex items-center gap-2 group">
-                    <span className="text-[var(--term-green)]">debugx</span>
-                    <span className="text-[var(--term-muted)]">@v1.0</span>
-                    <span className="cursor-blink text-[var(--term-green)] -translate-y-px">_</span>
-                </Link>
-
-                {/* Desktop */}
-                <div className="hidden md:flex items-center gap-7">
-                    <Link href="#problem" className="text-[var(--term-white)]/80 hover:text-[var(--term-white)] transition-colors">problem</Link>
-                    <Link href="#ai-feedback" className="text-[var(--term-white)]/80 hover:text-[var(--term-white)] transition-colors">how it works</Link>
-                    <Link href="#stats" className="text-[var(--term-white)]/80 hover:text-[var(--term-white)] transition-colors">community</Link>
-                    <span className="text-[var(--term-border)]">|</span>
-                    <Link href="/login" className="text-[var(--term-white)]/80 hover:text-[var(--term-white)] transition-colors">login</Link>
-                    <Link href="/signup" className="text-[var(--term-green)] hover:text-[var(--term-green-dim)] transition-colors">signup →</Link>
-                </div>
-
-                {/* Mobile toggle */}
-                <button
-                    aria-label="menu"
-                    onClick={() => setMobileOpen((v) => !v)}
-                    className="md:hidden flex flex-col gap-1 p-2"
-                >
-                    <span className={`block h-px w-5 bg-[var(--term-white)] transition-transform ${mobileOpen ? "translate-y-[5px] rotate-45" : ""}`} />
-                    <span className={`block h-px w-5 bg-[var(--term-white)] transition-opacity ${mobileOpen ? "opacity-0" : ""}`} />
-                    <span className={`block h-px w-5 bg-[var(--term-white)] transition-transform ${mobileOpen ? "-translate-y-[5px] -rotate-45" : ""}`} />
-                </button>
-            </nav>
-
-            {/* Mobile sheet */}
+        <>
             <motion.div
-                initial={false}
-                animate={{
-                    height: mobileOpen ? "auto" : 0,
-                    opacity: mobileOpen ? 1 : 0,
-                }}
-                transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                className="md:hidden overflow-hidden border-t border-[var(--term-border)] bg-[var(--term-bg)]"
+                aria-hidden
+                className="fixed inset-x-0 top-0 z-[95] h-[2px] origin-left bg-[var(--n-lime)]"
+                style={{ scaleX: progress }}
+            />
+            <motion.header
+                className="fixed inset-x-0 top-4 z-[80] flex justify-center px-4"
+                animate={{ y: hidden ? -100 : 0, opacity: hidden ? 0 : 1 }}
+                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             >
-                <div className="px-5 py-4 font-term text-[13px] space-y-3">
-                    <div className="text-[var(--term-muted)] text-[11px] uppercase tracking-widest">$ ls /</div>
-                    {[
-                        { href: "#problem", label: "problem" },
-                        { href: "#ai-feedback", label: "how it works" },
-                        { href: "#stats", label: "community" },
-                        { href: "/login", label: "login" },
-                    ].map((l) => (
-                        <Link
-                            key={l.href}
-                            href={l.href}
-                            onClick={() => setMobileOpen(false)}
-                            className="block text-[var(--term-white)]/90 hover:text-[var(--term-green)]"
-                        >
-                            <span className="text-[var(--term-muted)] mr-2">›</span>
-                            {l.label}
+                <nav className="flex w-full max-w-3xl flex-col rounded-[28px] border border-white/10 bg-[#0b0b10]/70 px-2 py-2 backdrop-blur-xl">
+                    <div className="flex items-center justify-between">
+                        <Link href="/" className="flex items-center gap-2 px-4 font-display text-sm font-bold tracking-tight">
+                            <span className="h-2 w-2 rounded-full bg-[var(--n-lime)] shadow-[0_0_12px_var(--n-lime)]" />
+                            debugx
                         </Link>
-                    ))}
-                    <Link
-                        href="/signup"
-                        onClick={() => setMobileOpen(false)}
-                        className="block text-[var(--term-green)] hover:text-[var(--term-green-dim)]"
+                        <div className="hidden items-center gap-1 md:flex">
+                            {LINKS.map((l) => (
+                                <a
+                                    key={l.href}
+                                    href={l.href}
+                                    className="rounded-full px-4 py-2 text-sm text-[var(--n-muted)] transition-colors hover:bg-white/5 hover:text-[var(--n-text)]"
+                                >
+                                    {l.label}
+                                </a>
+                            ))}
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <Link href="/login" className="hidden rounded-full px-4 py-2 text-sm text-[var(--n-muted)] hover:text-[var(--n-text)] sm:block">
+                                Log in
+                            </Link>
+                            <Link
+                                href="/signup"
+                                className="rounded-full bg-[var(--n-lime)] px-5 py-2.5 text-sm font-semibold text-[#050507] transition-shadow hover:shadow-[0_0_30px_rgba(198,255,61,0.5)]"
+                            >
+                                Sign up
+                            </Link>
+                            <button
+                                aria-label={open ? "Close menu" : "Open menu"}
+                                aria-expanded={open}
+                                onClick={() => setOpen((v) => !v)}
+                                className="flex h-11 w-11 flex-col items-center justify-center gap-1.5 md:hidden"
+                            >
+                                <span className={`block h-px w-5 bg-white transition-transform ${open ? "translate-y-[3.5px] rotate-45" : ""}`} />
+                                <span className={`block h-px w-5 bg-white transition-transform ${open ? "-translate-y-[3.5px] -rotate-45" : ""}`} />
+                            </button>
+                        </div>
+                    </div>
+                    <motion.div
+                        initial={false}
+                        animate={{ height: open ? "auto" : 0, opacity: open ? 1 : 0 }}
+                        className="overflow-hidden md:hidden"
                     >
-                        <span className="mr-2">›</span>signup →
-                    </Link>
-                </div>
-            </motion.div>
-        </header>
+                        <div className="flex flex-col gap-1 px-2 pb-2 pt-3">
+                            {[...LINKS, { href: "/login", label: "Log in" }].map((l) => (
+                                <a
+                                    key={l.href}
+                                    href={l.href}
+                                    onClick={() => setOpen(false)}
+                                    className="rounded-2xl px-4 py-3 font-display text-lg text-[var(--n-text)] hover:bg-white/5"
+                                >
+                                    {l.label}
+                                </a>
+                            ))}
+                        </div>
+                    </motion.div>
+                </nav>
+            </motion.header>
+        </>
     );
 }

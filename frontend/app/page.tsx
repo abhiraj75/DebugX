@@ -1,21 +1,23 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-// import { SmoothScroll } from "@/components/ui/SmoothScroll";
+import { SmoothScroll } from "@/components/ui/SmoothScroll";
+import Preloader from "@/components/landing/Preloader";
+import Cursor from "@/components/landing/Cursor";
 import Navbar from "@/components/landing/Navbar";
 import HeroSection from "@/components/landing/HeroSection";
-import ProblemSection from "@/components/landing/ProblemSection";
-import AIFeedbackSection from "@/components/landing/AIFeedbackSection";
-import VisualizerSection from "@/components/landing/VisualizerSection";
-import StatsSection from "@/components/landing/StatsSection";
-import LearningSection from "@/components/landing/LearningSection";
-import CTASection from "@/components/landing/CTASection";
+import ShatterScene from "@/components/landing/ShatterScene";
+import VelocityMarquee from "@/components/landing/VelocityMarquee";
+import VisualizerScene from "@/components/landing/VisualizerScene";
+import Bento from "@/components/landing/Bento";
+import FinalCTA from "@/components/landing/FinalCTA";
 
 export default function HomePage() {
     const { user, loading } = useAuth();
     const router = useRouter();
+    const [ready, setReady] = useState(false);
 
     useEffect(() => {
         if (!loading && user) {
@@ -24,30 +26,25 @@ export default function HomePage() {
     }, [user, loading, router]);
 
     if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-[var(--term-bg)] font-term">
-                <div className="text-center">
-                    <div className="text-[var(--term-green)] text-sm tracking-[0.2em] uppercase">
-                        debugx<span className="cursor-blink ml-1">_</span>
-                    </div>
-                    <p className="mt-3 text-[12px] text-[var(--term-muted)]">booting...</p>
-                </div>
-            </div>
-        );
+        return <div className="neural-root min-h-screen" />;
     }
 
     return (
-        <div className="terminal-root font-term min-h-screen bg-[var(--term-bg)] text-[var(--term-white)]">
-            <Navbar />
-            <main>
-                <HeroSection />
-                <ProblemSection />
-                <AIFeedbackSection />
-                <VisualizerSection />
-                <StatsSection />
-                <LearningSection />
-                <CTASection />
-            </main>
-        </div>
+        <SmoothScroll>
+            <div className="neural-root min-h-screen overflow-x-clip">
+                <Preloader onDone={() => setReady(true)} />
+                <Cursor />
+                <div aria-hidden className="grain" />
+                <Navbar />
+                <main>
+                    <HeroSection ready={ready} />
+                    <ShatterScene />
+                    <VelocityMarquee />
+                    <VisualizerScene />
+                    <Bento />
+                    <FinalCTA />
+                </main>
+            </div>
+        </SmoothScroll>
     );
 }
